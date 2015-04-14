@@ -1,6 +1,6 @@
-# Protein Lattice Model Sequence Space
+# LatticeGPM
 
-This is the master repository for lattice genotype-phenotype maps.
+LatticeGPM is a python package for building complete binary sequence spaces from protein lattice models. Lattice models provide a nice way to simulate the relationships between sequence, conformation, and function. Sequence Space provides a metaphor for thinking about evolution of sequence and function through this space. All lattice model calculations are done using [Dr. Jesse Bloom's](https://github.com/jbloom) `latticeproteins` package [here](https://github.com/jbloom/latticeproteins).
 
 ## Developers
 
@@ -8,40 +8,41 @@ Git must be installed to clone and contribute to this project
 
 ### Setting up for Development
 
-1. Fork this repository on Github
-2. Clone that repository locally
+- Fork this repository on Github
+- Clone that repository locally
 ```
-git clone <repo-url>
+    git clone https://github.com/<user-name>/latticegpm
 ```
-3. Navigate to this directory, and install (softly) this python package with 
+- Navigate to this directory, and install (softly) this python package with 
 ```
-cd <repo-name>
+cd latticegpm
 python setup.py develop
 ```
-4. Add another remote link to the master version, call it `upstream`.
+- Add another remote link to the master version, call it `upstream`.
 ```
-git remote add upstream <master-url-on-github>
+git remote add upstream https://github.com/harmslab/latticegpm
 ```
-5. Start a branch locally from local master
+- Start a branch locally from local master
 ```
 git checkout -B <branch-name>
 ```
-6. Make changes and commit to that branch.
+- Make changes and commit to that branch.
 ```
 git commit -a -m "<commit message>"
 ```
-7. Push to your fork on github (which you called `upstream`).
+- Push to your fork on github (which you called `upstream`).
 ```
 git push upstream <branch-name>
 ```
-8. Pull request the branch on Github into this master repository on Github.
+- Pull request the branch on Github into this master repository on Github.
+
 ## Users
 
-Clone this repo locally:
+- Clone this repo locally:
 ```
-git clone <master-url>
+git clone https://github.com/<user-name>/latticegpm
 ```
-Navigate to this directory, and install this python package with 
+- Navigate to this directory, and install this python package with 
 ```
 python setup.py install
 ```
