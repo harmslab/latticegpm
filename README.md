@@ -46,3 +46,4 @@ git clone https://github.com/<user-name>/latticegpm
 ```
 python setup.py install
 ```
+
