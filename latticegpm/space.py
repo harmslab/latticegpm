@@ -1,7 +1,7 @@
 import numpy as np
 from latticeproteins.conformations import Conformations, BindLigand, PrintConformation
 from latticegpm.utils import generate_binary_space
-from latticegpm.mapping import LatticeMap
+from latticegpm.mapping import LatticeMap, LatticeFitnessMap
 
 # ------------------------------------------------------
 # Build a binary protein lattice model sequence space
@@ -22,11 +22,11 @@ class LatticeConformationSpace(LatticeMap):
         self.stabilities = np.array(folds[:,0], dtype=float)
         self.conformations = folds[:,1]
         
-     def print_sequences(self, sequences):
-         """ Print sequence conformation with/without ligand bound. """
-         seq2conf = self.seq2conformation
-         for s in sequences:
-             PrintConformation(s, seq2conf[s])   
+    def print_sequences(self, sequences):
+        """ Print sequence conformation with/without ligand bound. """
+        seq2conf = self.seq2conformation
+        for s in sequences:
+            PrintConformation(s, seq2conf[s])   
         
 
 class LatticeFitnessSpace(LatticeFitnessMap):
