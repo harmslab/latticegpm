@@ -25,9 +25,9 @@ class LatticeMap(object):
         return self._wildtype
     
     @property
-    def mutations(self):
+    def mutant(self):
         """ Get possible that occur from reference system. """
-        return self._mutations
+        return self._mutant
     
     @property
     def temperature(self):
@@ -83,7 +83,7 @@ class LatticeMap(object):
     def wildtype(self, wildtype):
         """ Set the reference sequence among the mutants in the system. """
         self._wildtype = wildtype
-        self._mutations = self._differ_all_sites(wildtype)
+        self._mutant = self._farthest_genotype(wildtype)
         
     @temperature.setter
     def temperature(self, temperature):
@@ -123,13 +123,15 @@ class LatticeMap(object):
         """ Return ordered dictionary mapping two properties in self. """
         return OrderedDict([(keys[i], values[i]) for i in range(self.n)])
 
-    def _differ_all_sites(self, reference):
-        """ Find the sequence in the system that differs at all sites from reference.""" 
+    def _farthest_genotype(self, reference):
+        """ Find the sequence in the system that differs at the most sites. """ 
+        mutations = 0
         for sequence in self.sequences:
-            if HammingDistance(sequence, reference) == self.length:
-                differs = sequence
-                break
-        return sequence
+            differs = HammingDistance(sequence, reference)
+            if differs > mutations:
+                mutations = differs
+                mutant = sequence
+        return mutant
         
         
 class LatticeFitnessMap(LatticeMap):
