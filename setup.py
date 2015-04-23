@@ -9,6 +9,5 @@ setup(name='latticegpm',
       install_requires=[
           'latticeproteins',
           'numpy',
-          'epistasis'
       ],
       zip_safe=False)

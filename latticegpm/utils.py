@@ -4,7 +4,11 @@ import itertools as it
 # ------------------------------------------------------------
 from latticeproteins.sequences import HammingDistance, RandomSequence
 
-def search_conformation_space(Conformations, temperature, threshold, max_iter=1000):
+def compare_sequences(s1, s2):
+    """ Return the indice where two strings differ. """
+    return [i for i in range(len(s1)) if s1[i] != s2[i]]
+
+def search_conformation_space(Conformations, temperature, threshold, nsites=None, max_iter=1000):
     """ Randomly search the conformations landscape for two sequences that 
         fold with energy below some threshold and differ at all sites. 
         
@@ -23,6 +27,9 @@ def search_conformation_space(Conformations, temperature, threshold, max_iter=10
             List of two sequences that differ at all sites and fold.
     """
     length = Conformations.Length()
+    # Check
+    if nsites is None:
+        nsites = length
     counter = 0
     sequences = list()
     while len(sequences) < 2 and counter < max_iter:
@@ -33,7 +40,7 @@ def search_conformation_space(Conformations, temperature, threshold, max_iter=10
         if energy < threshold:
             # Check Hamming distance once sequences list contains more than 2 sequences.
             if len(sequences) > 0:
-                if HammingDistance(sequences[0], sequence) is length:
+                if HammingDistance(sequences[0], sequence) is nsites:
                     sequences.append("".join(sequence))
             else:
                 sequences.append("".join(sequence))   
@@ -102,21 +109,17 @@ def generate_binary_space(wildtype, mutant):
     if len(wildtype) != len(mutant):
         raise IndexError("ancestor_sequence and derived sequence must be the same length.")
     
-    # Check that sequences differ at all sites.    
-    if HammingDistance(wildtype, mutant) != len(wildtype):
-        raise Exception("Wildtype and mutant must differ at all sites.")
-
+    # Count mutations and keep indices
+    mutations = compare_sequences(wildtype, mutant)
+    n_mut = len(mutations)
+    mutation_map = dict(zip(range(n_mut), mutations))
+    
     # Build a binary representation
-    binaries = sorted(["".join(list(s)) for s in it.product('01', repeat=len(wildtype))])
-    sequence_space = list()
-    for b in binaries:
-        binary = list(b)
-        sequence = list()
-        # Use binary representation to build all binary-mutants 
-        for i in range(len(wildtype)):
-            if b[i] == '0':
-                sequence.append(wildtype[i])
-            else:
-                sequence.append(mutant[i])
-        sequence_space.append(''.join(sequence))
+    combinations = [list(j) for i in range(1,n_mut+1) for j in it.combinations(mutations, i)]
+    sequence_space = [wildtype]
+    for c in combinations:
+        sequence = list(wildtype)
+        for el in c:
+            sequence[-el-1] = mutant[-el-1]
+        sequence_space.append("".join(sequence))
     return sequence_space
