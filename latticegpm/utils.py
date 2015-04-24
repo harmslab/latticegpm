@@ -4,8 +4,6 @@ import itertools as it
 # ------------------------------------------------------------
 from latticeproteins.sequences import HammingDistance, RandomSequence, NMutants
 
-""" ADD NMUTANTS STUFF. """
-
 def compare_sequences(s1, s2):
     """ Return the indice where two strings differ. """
     return [i for i in range(len(s1)) if s1[i] != s2[i]]
@@ -56,14 +54,14 @@ def search_conformation_space(Conformations, temperature, threshold, differby=No
     
     # Check looping
     if counter >= max_iter:
-        raise Exception("Reach max iteration in search.")
+        raise Exception("Reached max iteration in search.")
     
     # Set second sequence
     sequence2 = ''.join(mutants[counter])
     return sequence1, sequence2
 
 
-def search_fitness_landscape(Fitness, threshold, max_iter=1000):
+def search_fitness_landscape(Fitness, threshold, differby=None, max_iter=1000):
     """ Randomly search the Fitness landscape for two sequences that 
         have non-zero fitnesses above threshold and differ at all sites. 
         
@@ -81,27 +79,39 @@ def search_fitness_landscape(Fitness, threshold, max_iter=1000):
         sequences: list of two strings
             List of two sequences that differ at all sites and fold.
     """
+    
     length = Fitness.Length()
-    counter = 0
-    sequences = list()
-    while len(sequences) < 2 and counter < max_iter:
+    # Check
+    if differby is None:
+        differby = length
+    elif differby > length:
+        raise Exception("differby cannot be larger than the length of the sequences.")
+    
+    # Find a sequence that's below a certain fitness.
+    fitness = threshold
+    while fitness <= threshold:
         sequence = RandomSequence(length)
         fitness = Fitness.Fitness(sequence)
-        # Check that fitness value is above the threshold
-        if fitness > threshold:
-            # Check Hamming distance once sequences list contains more than 2 sequences.
-            if len(sequences) > 0:
-                if HammingDistance(sequences[0], sequence) is length:
-                    sequences.append("".join(sequence))
-            else:
-                sequences.append("".join(sequence))   
-        counter +=1
     
-    # Raise error if random search reaches maximum iterations
-    if counter == max_iter:
-        raise Exception("Random search reached max iterations before finding satisfying sequences.")
-        
-    return sequences
+    # Set the resulting sequence as the first variable
+    sequence1 = ''.join(sequence)
+    fitness = threshold # Reset fitness
+    
+    # Search for next function
+    counter = -1
+    mutants = NMutants(sequence1, differby, max_iter)
+    while fitness <= threshold:
+        counter += 1
+        fitness = Fitness.Fitness(mutants[counter])
+    
+    # Check looping
+    if counter >= max_iter:
+        raise Exception("Reached max iteration in search.")
+    
+    # Set second sequence
+    sequence2 = ''.join(mutants[counter])
+    return sequence1, sequence2
+
 
 def enumerate_space(wildtype, mutant):
     """ Build a list of sequences that represent all binary combinations of the wildtype 
