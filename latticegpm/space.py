@@ -13,7 +13,7 @@ class LatticeConformationSpace(LatticeMap):
     
     def __init__(self, wildtype, mutant, Conformations, temperature=1.0):
         """ Build a protein lattice model sequence space from a conformation space. """
-        self.sequences = generate_binary_space(wildtype, mutant)
+        self.sequences = enumerate_space(wildtype, mutant)
         self.wildtype = wildtype
         self.temperature = temperature
         
@@ -33,7 +33,7 @@ class LatticeFitnessSpace(LatticeFitnessMap):
     
     def __init__(self, wildtype, mutant, Fitness):
         """ Build a protein lattice model sequence space from a given fitness function. """
-        self.sequences = generate_binary_space(wildtype, mutant)
+        self.sequences = enumerate_space(wildtype, mutant)
         self.wildtype = wildtype
         self.temperature = Fitness._temp
         # Check that the fitness landscape describes ligand binding.
