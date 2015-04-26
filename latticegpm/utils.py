@@ -132,15 +132,17 @@ def enumerate_space(wildtype, mutant):
     
     # Count mutations and keep indices
     mutations = compare_sequences(wildtype, mutant)
-    n_mut = len(mutations)
+    n_mut = len(mutations)    
+    rev_mutations = [mutations[i] for i in range(n_mut-1, -1, -1)]
     mutation_map = dict(zip(range(n_mut), mutations))
     
     # Build a binary representation
-    combinations = [list(j) for i in range(1,n_mut+1) for j in it.combinations(mutations, i)]
+    combinations = [list(j) for i in range(1,n_mut+1) for j in it.combinations(rev_mutations, i)]
     sequence_space = [wildtype]
     for c in combinations:
         sequence = list(wildtype)
         for el in c:
-            sequence[-el-1] = mutant[-el-1]
+            sequence[el] = mutant[el]
         sequence_space.append("".join(sequence))
+     
     return sequence_space

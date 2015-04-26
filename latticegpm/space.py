@@ -1,6 +1,6 @@
 import numpy as np
 from latticeproteins.conformations import Conformations, BindLigand, PrintConformation
-from latticegpm.utils import generate_binary_space
+from latticegpm.utils import enumerate_space
 from latticegpm.mapping import LatticeMap, LatticeFitnessMap
 
 # ------------------------------------------------------
