@@ -11,14 +11,15 @@ from latticegpm.mapping import LatticeMap, LatticeFitnessMap
 
 class LatticeConformationSpace(LatticeMap):
     
-    def __init__(self, wildtype, mutant, Conformations, temperature=1.0):
+    def __init__(self, wildtype, mutant, conformations, target_conf=None, temperature=1.0):
         """ Build a protein lattice model sequence space from a conformation space. """
         self.sequences = enumerate_space(wildtype, mutant)
         self.wildtype = wildtype
         self.temperature = temperature
+        self.target_conf = target_conf
         
         # Fold proteins and extract stability parameter and native conformations
-        folds = np.array([Conformations.FoldSequence(s, self.temperature) for s in self.sequences])
+        folds = np.array([conformations.FoldSequence(s, self.temperature, target_conf=self.target_conf) for s in self.sequences])
         self.stabilities = np.array(folds[:,0], dtype=float)
         self.conformations = folds[:,1]
         

@@ -8,7 +8,7 @@ def compare_sequences(s1, s2):
     """ Return the indice where two strings differ. """
     return [i for i in range(len(s1)) if s1[i] != s2[i]]
 
-def search_conformation_space(Conformations, temperature, threshold, differby=None, max_iter=1000):
+def search_conformation_space(Conformations, temperature, threshold, target_conf=None, differby=None, max_iter=1000):
     """ Randomly search the conformations landscape for two sequences that 
         fold with energy below some threshold and differ at all sites. 
         
@@ -49,7 +49,7 @@ def search_conformation_space(Conformations, temperature, threshold, differby=No
     mutants = NMutants(sequence1, differby, max_iter)
     while energy >= threshold:
         counter += 1
-        output = Conformations.FoldSequence(mutants[counter], temperature)
+        output = Conformations.FoldSequence(mutants[counter], temperature, target_conf=target_conf)
         energy = output[0]
     
     # Check looping
