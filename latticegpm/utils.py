@@ -1,12 +1,57 @@
 import itertools as it
+import numpy as np
 # ------------------------------------------------------------
 # Jesse Bloom's Lattice Model imports
 # ------------------------------------------------------------
 from latticeproteins.sequences import HammingDistance, RandomSequence, NMutants
+from latticeproteins.interactions import miyazawa_jernigan as mje
 
 def compare_sequences(s1, s2):
     """ Return the indice where two strings differ. """
     return [i for i in range(len(s1)) if s1[i] != s2[i]]
+
+def fold_energy(sequence, conformation):
+    """ Calculate the energy of the sequence with the given conformation. 
+    
+        Args:
+        ----
+        sequence: str
+            Amino acid sequence to fold.
+        conformation: str
+            Conformation according to latticemodel's conformations format (e.g. 'UDLLDRU')
+        
+        Returns:
+        -------
+        energy: float
+            energy of the conformation (sum of all contact energies)
+    """
+    sites = list(sequence)
+    moves = list(conformation)  
+    length = len(sites)
+    
+    # sum the energies that are replaced by bonds to subtract out later.    
+    internal_e = sum([mje[sequence[i-1:i+1]] for i in range(1,length)])
+    
+    # build a coordinate system, note that odd rotation of intuitive coordinates
+    # since we are working in numpy array grid.
+    coordinates = {"U": [-1,0], "D":[1,0], "L":[0,-1], "R":[0,1]}
+    grid = np.zeros((length, length), dtype=str)
+    x = y = round(length/2.0) # initial position on the grid is at the center of the 2d array
+    grid[x,y] = sites[0]
+    
+    # move on grid, populate with sequence, and collect all neighbor interactions. 
+    energies = []
+    for i in range(length-1):
+        step = coordinates[moves[i]]
+        x += step[0]
+        y += step[1]
+        grid[x,y] = sites[i+1]
+        neighbors = [sites[i+1] + grid[x+c[0], y+c[1]] for c in coordinates.values()]
+        energies += [mje[n] for n in neighbors if n in mje]
+    
+    # subtract the contacts that have bonds between them.
+    total_e = sum(energies) - internal_e
+    return total_e, grid
 
 def search_conformation_space(Conformations, temperature, threshold, target_conf=None, differby=None, max_iter=1000):
     """ Randomly search the conformations landscape for two sequences that 
