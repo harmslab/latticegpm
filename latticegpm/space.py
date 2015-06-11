@@ -1,6 +1,6 @@
 import numpy as np
 from latticeproteins.conformations import Conformations, BindLigand, PrintConformation
-from latticegpm.utils import enumerate_space
+from latticegpm.utils import enumerate_space, fold_energy, ConformationError
 from latticegpm.mapping import LatticeMap, LatticeFitnessMap
 
 # ------------------------------------------------------
@@ -19,9 +19,39 @@ class LatticeConformationSpace(LatticeMap):
         self.target_conf = target_conf
         
         # Fold proteins and extract stability parameter and native conformations
-        folds = np.array([conformations.FoldSequence(s, self.temperature, target_conf=self.target_conf) for s in self.sequences])
-        self.stabilities = np.array(folds[:,0], dtype=float)
-        self.conformations = folds[:,1]
+        self.stabilities = np.zeros(len(self.sequences),dtype=float)
+        self.conformations = np.zeros(len(self.sequences),dtype="<U" +str(self.length))
+        
+        for i in range(len(self.sequences)):
+            fold = conformations.FoldSequence(self.sequences[i], self.temperature, target_conf=self.target_conf)
+            if fold[1] is None:
+                self.stabilities[i] = 0
+                self.conformations[i] = "U" * (self.length-1)
+            else:
+                self.stabilities[i] = fold[0]
+                self.conformations[i] = fold[1]
+        unique = np.unique(self.conformations)
+        print(unique)
+        # Calculate the energies of all folds
+        self.energies = np.zeros(len(self.sequences), dtype=float)
+        self.delta_e = np.zeros(len(self.sequences), dtype=float)
+        for i in range(len(self.sequences)):            
+            try:
+                self.energies[i] = fold_energy(self.sequences[i], self.conformations[i])
+                if len(unique) <= 2:
+                    self.delta_e[i] = self.energies[0] - self.energies[i]
+                else:
+                    raise Exception("""More than two state system.""")
+            except ConformationError:
+                self.energies[i] = 0
+                self.delta_e[i] = self.energies[0] - 0
+                
+                
+    def fit_ddG(self):
+        """ Calculate the delta delta Gs for the lattice model genotype-phenotype map."""
+        
+        
+        
         
     def print_sequences(self, sequences):
         """ Print sequence conformation with/without ligand bound. """

@@ -4,7 +4,10 @@ import numpy as np
 # Jesse Bloom's Lattice Model imports
 # ------------------------------------------------------------
 from latticeproteins.sequences import HammingDistance, RandomSequence, NMutants
-from latticeproteins.interactions import miyazawa_jernigan as mje
+from latticeproteins.interactions import miyazawa_jernigan
+
+class ConformationError(Exception):
+    """ If protein doesn't fold, raise error. """
 
 def compare_sequences(s1, s2):
     """ Return the indice where two strings differ. """
@@ -25,12 +28,32 @@ def fold_energy(sequence, conformation):
         energy: float
             energy of the conformation (sum of all contact energies)
     """
+    contacts = lattice_contacts(sequence, conformation)
+    energy = sum([miyazawa_jernigan[c] for c in contacts])
+    return energy
+    
+def lattice_contacts(sequence, conformation):
+    """ Find all contacts in conformation.
+    
+        Args:
+        ----
+        sequence: str
+            Amino acid sequence to fold.
+        conformation: str
+            Conformation according to latticemodel's conformations format (e.g. 'UDLLDRU')
+        
+        Returns:
+        -------
+        contacts: list
+            list of contact pairs
+    """
     sites = list(sequence)
-    moves = list(conformation)  
     length = len(sites)
     
-    # sum the energies that are replaced by bonds to subtract out later.    
-    internal_e = sum([mje[sequence[i-1:i+1]] for i in range(1,length)])
+    try:
+        moves = list(conformation)  
+    except TypeError:
+        raise ConformationError("""Protein conformation is None; is there a native state? """)
     
     # build a coordinate system, note that odd rotation of intuitive coordinates
     # since we are working in numpy array grid.
@@ -39,19 +62,25 @@ def fold_energy(sequence, conformation):
     x = y = round(length/2.0) # initial position on the grid is at the center of the 2d array
     grid[x,y] = sites[0]
     
-    # move on grid, populate with sequence, and collect all neighbor interactions. 
-    energies = []
+    # move on grid, populate with amino acid at that site, and store all contacting neighbors. 
+    contacts = []
     for i in range(length-1):
         step = coordinates[moves[i]]
         x += step[0]
         y += step[1]
         grid[x,y] = sites[i+1]
         neighbors = [sites[i+1] + grid[x+c[0], y+c[1]] for c in coordinates.values()]
-        energies += [mje[n] for n in neighbors if n in mje]
+        contacts += [n for n in neighbors if n in miyazawa_jernigan]
+
+    # subtract the contacts that have bonds between them.    
+    for i in range(1,length):
+        try:
+            contacts.remove(sequence[i-1:i+1])
+        except ValueError:
+            contacts.remove(sequence[i] + sequence[i-1])
     
-    # subtract the contacts that have bonds between them.
-    total_e = sum(energies) - internal_e
-    return total_e, grid
+    return contacts
+    
 
 def search_conformation_space(Conformations, temperature, threshold, target_conf=None, differby=None, max_iter=1000):
     """ Randomly search the conformations landscape for two sequences that 
