@@ -11,47 +11,71 @@ from latticegpm.mapping import LatticeMap, LatticeFitnessMap
 
 class LatticeConformationSpace(LatticeMap):
     
-    def __init__(self, wildtype, mutant, conformations, target_conf=None, temperature=1.0):
-        """ Build a protein lattice model sequence space from a conformation space. """
+    def __init__(self, wildtype, mutant, conformations, target_conf=None, temperature=1.0, n_conformations=2):
+        """ Build a protein lattice model sequence space from a conformation space. 
+        
+            Parameters:
+            ----------
+            wildtype: str
+                Wildtype sequence
+            mutant: str
+                Mutant sequence
+            conformations: Conformations object
+                latticeproteins.conformations object for all conformations for
+                strings with len(wildtype)
+            target_conf: str (optional)
+                String that describes the target conformation to fold each sequence to.
+            temperature: float
+                temperature parameter for calculating folding stability.
+            n_conformations: int
+                number of conformations that should be in space (raise error if more)
+        
+        """
         self.sequences = enumerate_space(wildtype, mutant)
         self.wildtype = wildtype
         self.temperature = temperature
+        if target_conf != None:
+            n_conformations = 1
         self.target_conf = target_conf
         
         # Fold proteins and extract stability parameter and native conformations
         self.stabilities = np.zeros(len(self.sequences),dtype=float)
         self.conformations = np.zeros(len(self.sequences),dtype="<U" +str(self.length))
         
+        # Determine lattice protein native fold conformation.
         for i in range(len(self.sequences)):
             fold = conformations.FoldSequence(self.sequences[i], self.temperature, target_conf=self.target_conf)
+            # If the lattice protein does not have a stable native state, do not fold protein (i.e. stability = 0)
             if fold[1] is None:
                 self.stabilities[i] = 0
                 self.conformations[i] = "U" * (self.length-1)
+            # Else -- store stabilities and conformations
             else:
                 self.stabilities[i] = fold[0]
                 self.conformations[i] = fold[1]
-        unique = np.unique(self.conformations)
-        print(unique)
+        
+        # Find all unique conformations.
+        self.n_conformations = np.unique(self.conformations)
+
         # Calculate the energies of all folds
         self.energies = np.zeros(len(self.sequences), dtype=float)
         self.delta_e = np.zeros(len(self.sequences), dtype=float)
         for i in range(len(self.sequences)):            
             try:
                 self.energies[i] = fold_energy(self.sequences[i], self.conformations[i])
-                if len(unique) <= 2:
+                # If the space has more than n_conformations, raise error
+                if len(self.n_conformations) == n_conformations:
                     self.delta_e[i] = self.energies[0] - self.energies[i]
                 else:
-                    raise Exception("""More than two state system.""")
+                    raise Exception("More than " + str(n_conformations) + " state system.")
             except ConformationError:
+                # Catch the unfolded proteins
                 self.energies[i] = 0
                 self.delta_e[i] = self.energies[0] - 0
                 
-                
-    def fit_ddG(self):
-        """ Calculate the delta delta Gs for the lattice model genotype-phenotype map."""
-        
-        
-        
+    def fit_global_dG(self):
+        """ Calculate the delta delta Gs (i.e. global stability) for the lattice model genotype-phenotype map."""
+        pass
         
     def print_sequences(self, sequences):
         """ Print sequence conformation with/without ligand bound. """
@@ -63,7 +87,17 @@ class LatticeConformationSpace(LatticeMap):
 class LatticeFitnessSpace(LatticeFitnessMap):
     
     def __init__(self, wildtype, mutant, Fitness):
-        """ Build a protein lattice model sequence space from a given fitness function. """
+        """ Build a protein lattice model sequence space from a given fitness function. 
+        
+            Parameters:
+            ----------
+            wildtype: str
+                Wildtype sequence
+            mutant: str
+                Mutant sequence
+            Fitness: Fitness object
+                latticeproteins.fitness object for protein that binds a ligand. 
+        """
         self.sequences = enumerate_space(wildtype, mutant)
         self.wildtype = wildtype
         self.temperature = Fitness._temp

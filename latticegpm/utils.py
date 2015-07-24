@@ -13,6 +13,22 @@ def compare_sequences(s1, s2):
     """ Return the indice where two strings differ. """
     return [i for i in range(len(s1)) if s1[i] != s2[i]]
 
+def mutations_map(s1, s2):
+    """ Construct a mutations dictionary for latticegpm between
+        to sequences, s1 and s2.
+        
+        Example:
+        -------
+            {site-number: [alphabet]}
+    """
+    mutations = dict()
+    for i in range(len(s1)):
+        if s1[i] == s2[i]:
+            mutations[i+1] = None
+        else:
+            mutations[i+1] = [s1[i], s2[i]]
+    return mutations
+
 def fold_energy(sequence, conformation):
     """ Calculate the energy of the sequence with the given conformation. 
     
@@ -58,7 +74,7 @@ def lattice_contacts(sequence, conformation):
     # build a coordinate system, note that odd rotation of intuitive coordinates
     # since we are working in numpy array grid.
     coordinates = {"U": [-1,0], "D":[1,0], "L":[0,-1], "R":[0,1]}
-    grid = np.zeros((length, length), dtype=str)
+    grid = np.zeros((length+1, length+1), dtype=str)
     x = y = round(length/2.0) # initial position on the grid is at the center of the 2d array
     grid[x,y] = sites[0]
     
@@ -126,9 +142,9 @@ def search_conformation_space(Conformations, temperature, threshold, target_conf
         output = Conformations.FoldSequence(mutants[counter], temperature, target_conf=target_conf)
         energy = output[0]
     
-    # Check looping
-    if counter >= max_iter:
-        raise Exception("Reached max iteration in search.")
+        # Check looping
+        if counter >= max_iter:
+            raise Exception("Reached max iteration in search.")
     
     # Set second sequence
     sequence2 = ''.join(mutants[counter])
@@ -178,9 +194,9 @@ def search_fitness_landscape(Fitness, threshold, differby=None, max_iter=1000):
         counter += 1
         fitness = Fitness.Fitness(mutants[counter])
     
-    # Check looping
-    if counter >= max_iter:
-        raise Exception("Reached max iteration in search.")
+        # Check looping
+        if counter >= max_iter:
+            raise Exception("Reached max iteration in search.")
     
     # Set second sequence
     sequence2 = ''.join(mutants[counter])
