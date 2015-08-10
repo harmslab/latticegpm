@@ -2,42 +2,22 @@ import numpy as np
 from collections import OrderedDict
 from latticeproteins.conformations import PrintConformation
 from latticeproteins.sequences import HammingDistance
+from seqspace.gpm import GenoPhenoMap
 
-class LatticeMap(object):
+class LatticeMap(GenoPhenoMap):
+    
+    def __init__(self, wildtype, genotypes, phenotypes, mutations=None):
+        """ """
+        super(LatticeMap, self).__init__(self, wildtype, sgenotypes, phenotypes, mutations=mutations)
     
     # ----------------------------------------
     # Get Properties of the Lattice Map
     # ----------------------------------------
     
     @property
-    def length(self):
-        """ Get length of the sequences. """
-        return self._length
-    
-    @property
-    def n(self):
-        """ Get size of the sequence space. """
-        return self._n
-    
-    @property
-    def wildtype(self):
-        """ Get reference sequences for interactions. """
-        return self._wildtype
-    
-    @property
-    def mutant(self):
-        """ Get possible that occur from reference system. """
-        return self._mutant
-    
-    @property
     def temperature(self):
         """ Get temperature of the system. """
         return self._temperature
-    
-    @property
-    def sequences(self):
-        """ Get sequences. """
-        return self._sequences
         
     @property
     def stabilities(self):
@@ -48,42 +28,10 @@ class LatticeMap(object):
     def conformations(self):
         """ Get the native conformations of the each sequence. """
         return self._conformations
-         
-    # -------------------------------------------
-    # Helpful maps that are built on the fly
-    #--------------------------------------------
-    @property
-    def seq2fitness(self):
-        """ Return dict of sequences mapped to fitnesses. """
-        return self._map(self.sequences, self.fitnesses)
-    
-    @property
-    def seq2index(self):
-        """ Return an ordered dictionary mapping sequences to indices. """
-        return self._map(self.sequences, self._indices)
-    
-    @property
-    def seq2conformation(self):
-        """ Return an ordered dictionary of sequences mapped to their native conformations. """
-        return self._map(self.sequences, self.conformations)
         
     # -------------------------------------------
     # Setting methods for properties
     # -------------------------------------------
-    
-    @sequences.setter
-    def sequences(self, sequences):
-        """ Set sequences from ordered list of sequences. """
-        self._n = len(sequences)
-        self._length = len(sequences[0])
-        self._sequences = np.array(sequences)
-        self._indices = np.arange(self._n)
-        
-    @wildtype.setter
-    def wildtype(self, wildtype):
-        """ Set the reference sequence among the mutants in the system. """
-        self._wildtype = wildtype
-        self._mutant = self._farthest_genotype(wildtype)
         
     @temperature.setter
     def temperature(self, temperature):
@@ -97,7 +45,7 @@ class LatticeMap(object):
         if type(conformations) is dict:
             self._conformations = self._if_dict(conformations)
         else:
-            if len(conformations) != len(self._sequences):
+            if len(conformations) != len(self.genotypes):
                 raise("Number of conformations does not equal number of sequences.")
             else:
                 self._conformations = conformations
@@ -109,30 +57,10 @@ class LatticeMap(object):
         if type(stabilities) is dict:
             self._stabilities = self._if_dict(stabilities)
         else:
-            if len(stabilities) != len(self._sequences):
+            if len(stabilities) != len(self.genotypes):
                 raise("Number of stabilities does not equal number of sequences.")
             else:
                 self._stabilities = stabilities
-                
-
-    # --------------------------------------------
-    # Useful methods for mapping object
-    # --------------------------------------------
-        
-    def _map(self, keys, values):
-        """ Return ordered dictionary mapping two properties in self. """
-        return OrderedDict([(keys[i], values[i]) for i in range(self.n)])
-
-    def _farthest_genotype(self, reference):
-        """ Find the sequence in the system that differs at the most sites. """ 
-        mutations = 0
-        for sequence in self.sequences:
-            differs = HammingDistance(sequence, reference)
-            if differs > mutations:
-                mutations = differs
-                mutant = sequence
-        return mutant
-        
         
 class LatticeFitnessMap(LatticeMap):
     
