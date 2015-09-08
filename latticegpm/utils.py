@@ -24,9 +24,9 @@ def mutations_map(s1, s2):
     mutations = dict()
     for i in range(len(s1)):
         if s1[i] == s2[i]:
-            mutations[i+1] = None
+            mutations[i] = None
         else:
-            mutations[i+1] = [s1[i], s2[i]]
+            mutations[i] = [s1[i], s2[i]]
     return mutations
 
 def fold_energy(sequence, conformation):
