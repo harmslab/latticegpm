@@ -60,7 +60,7 @@ class LatticeConformationSpace(LatticeMap):
         unique_confs = np.unique(confs)
         
         if n_conformations == 0:
-            n_conformations = unique_confs
+            n_conformations = len(unique_confs)
         
         # Calculate the energies of all folds
         energies = np.zeros(len(genotypes), dtype=float)
