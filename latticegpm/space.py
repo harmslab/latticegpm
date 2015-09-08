@@ -13,7 +13,7 @@ from seqspace.utils import binary_mutations_map
 
 class LatticeConformationSpace(LatticeMap):
     
-    def __init__(self, wildtype, mutant, conformations, target_conf=None, temperature=1.0, n_conformations=2):
+    def __init__(self, wildtype, mutant, conformations, target_conf=None, temperature=1.0, n_conformations=0):
         """ Build a protein lattice model sequence space from a conformation space. 
         
             Parameters:
@@ -59,6 +59,9 @@ class LatticeConformationSpace(LatticeMap):
         # Find all unique conformations
         unique_confs = np.unique(confs)
         
+        if n_conformations == 0:
+            n_conformations = unique_confs
+        
         # Calculate the energies of all folds
         energies = np.zeros(len(genotypes), dtype=float)
         delta_e = np.zeros(len(genotypes), dtype=float)
@@ -69,7 +72,7 @@ class LatticeConformationSpace(LatticeMap):
                 if len(unique_confs) == n_conformations:
                     delta_e[i] = energies[0] - energies[i]
                 else:
-                    raise Exception("More than " + str(n_conformations) + " state system.")
+                    raise Exception("More than " + str(n_conformations) + " state system, but it shouldn't.")
             except ConformationError:
                 # Catch the unfolded proteins
                 energies[i] = 0
