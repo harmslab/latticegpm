@@ -98,18 +98,29 @@ class LatticeConformationSpace(LatticeMap):
 
         for i in range(self.n):
             # Sum over all conformations in z_conf for genotype i
-            z = 1
+            z = 0
+
+            conf_energies = []
             for conf in self.z_confs:
-                z += np.exp(-fold_energy(self.genotypes[i], conf)/self.temperature)
+                # Calculate folding energies of configuration
+                fe = fold_energy(self.genotypes[i],conf)
+                # Add config to partition function
+                z += np.exp(-fe/self.temperature)
+                # Store this energie for latter
+                conf_energies.append(fe)
 
             # Set partition functions
             partition[i] = z
 
-            # Calculate the energy of native state
-            energies[i] = fold_energy(self.genotypes[i], self.confs[i])
+            # Find energy minimum from allowed conformations, this becomes native state.
+            energies[i] = min(conf_energies)
 
         # Calculate the stabilities
-        self._phenotypes = energies - self.temperature * np.log(partition - np.exp(-energies/self.temperature))
+        stabilities = energies - self.temperature * np.log(partition - np.exp(-energies/self.temperature))
+        
+        # Quality control... any NaN stabilities get set to 0 stability
+        self._phenotypes = np.nan_to_num(stabilities)
+
         return self.phenotypes
 
     def print_sequences(self, sequences):
