@@ -49,10 +49,10 @@ class ConfigurationSVG:
 
     def _uline(self,x,y,*args):
         """ x,y are origin coordinates """
-        return self.add(self._line(((x,y+5),(x,y-5))))
+        return self.add(self._line(((x,y-5),(x,y+5))))
 
     def _dline(self,x,y, *args):
-        return self.add(self._line(((x,y-5),(x,y+5))))
+        return self.add(self._line(((x,y+5),(x,y-5))))
 
     def _rline(self, x,y, *args):
         return self.add(self._line(((x-5,y),(x+5,y))))
@@ -74,7 +74,7 @@ class ConfigurationSVG:
 
     def _build_grid(self,sequence, configuration):
         """ """
-        moves = {"U":[0,1], "D":[0,-1], "R":[1,0], "L":[-1,0]}
+        moves = {"U":[0,-1], "D":[0,1], "R":[1,0], "L":[-1,0]}
 
         # find boundaries for drawing
         xmoves, ymoves = [0], [0]
