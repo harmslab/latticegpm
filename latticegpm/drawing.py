@@ -1,9 +1,15 @@
 import svgwrite
 
+ROTATE = {"U":"R", "R":"D", "D":"L", "L":"U"}
+
 class ConfigurationSVG:
 
-    def __init__(self,sequence, configuration, filename="untitled.svg"):
+    def __init__(self,sequence, configuration, filename="untitled.svg", rotate=0):
         """ Class for drawing an SVG representation of lattice conformation. """
+        n = int(rotate/90)
+        for i in range(n):
+            configuration = "".join([ROTATE[c] for c in configuration])
+
         self.sequence = sequence
         self.configuration = configuration
         self._filename = filename
@@ -43,10 +49,10 @@ class ConfigurationSVG:
 
     def _uline(self,x,y,*args):
         """ x,y are origin coordinates """
-        return self.add(self._line(((x,y-5),(x,y+5))))
+        return self.add(self._line(((x,y+5),(x,y-5))))
 
     def _dline(self,x,y, *args):
-        return self.add(self._line(((x,y+5),(x,y-5))))
+        return self.add(self._line(((x,y-5),(x,y+5))))
 
     def _rline(self, x,y, *args):
         return self.add(self._line(((x-5,y),(x+5,y))))
