@@ -2,9 +2,9 @@ import numpy as np
 from collections import OrderedDict
 from latticeproteins.conformations import PrintConformation
 from latticeproteins.sequences import HammingDistance
-from seqspace.gpm import GenoPhenoMap
+from seqspace.gpm import GenotypePhenotypeMap
 
-class LatticeMap(GenoPhenoMap):
+class LatticeMap(GenotypePhenotypeMap):
 
     def __init__(self, wildtype, genotypes, phenotypes, mutations=None):
         """ """
