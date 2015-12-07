@@ -127,7 +127,7 @@ class LatticeConformationSpace(LatticeMap):
         """ Print sequence conformation with/without ligand bound. """
 
         # Get the sequence to conformation mapping from `seqspace` machinery.
-        seq2conf = self.get_map("genotypes", "conformations")
+        seq2conf = self.get_map("genotypes", "confs")
         for s in sequences:
             PrintConformation(s, seq2conf[s])
 
