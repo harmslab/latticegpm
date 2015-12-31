@@ -1,11 +1,132 @@
+__doc__ = """
+
+Module for creating SVG's of protein lattice configurations.
+
+Example call:
+
+    >>> # Create an instance
+    >>> drawing = latticegpm.svg.Configuration(sequence, configuration, filename="drawing1.svg")
+    >>> # Save to file
+    >>> # drawing.save()
+    >>> # Print in Jupyter (IPython) notebook
+    >>> drawing.notebook
+
+"""
+
 import svgwrite
 
 ROTATE = {"U":"R", "R":"D", "D":"L", "L":"U"}
 
+COLORS = {
+    "r": "red",
+    "b": "blue",
+    "k": "black",
+    "g": "green",
+    "m": "magenta",
+    "y": "yellow",
+}
+
+class Configuration:
+
+    def __init__(self, sequence, configuration, 
+                    filename="untitled.svg", 
+                    colors=None, 
+                    rotation=0, 
+                    fontsize=20):
+        
+        """ 
+            Main class for drawing an SVG of a lattice protein's fold. 
+        
+            Arguments:
+            ---------
+            sequence: str
+                Amino acid sequence 
+            configuration: str
+                sequence of direction letters describing the 2d configuration.
+            filename: str
+                Filename for saving the svg
+            colors: list of strings
+                list of colors for each amino acid in sequence
+            rotation: int
+                rotate the configuration by 0, 90, 180, or 270 degrees
+            fontsize: int
+                Fontsize, in pixels, of sequence in configuration. The svg will scale
+                with the fontsize of the letters.
+                
+                
+            Example call:
+
+                >>> # Create an instance
+                >>> drawing = Configuration(sequence, configuration, filename="drawing1.svg")
+                >>> # Save to file
+                >>> # drawing.save()
+                >>> # Print in Jupyter (IPython) notebook
+                >>> drawing.notebook
+        """
+        
+        # Rotate configuration if given
+        configuration, rotation = self.rotate(configuration, rotation)
+        
+        # Set sequence and configuration
+        self.sequence = sequence
+        self.configuration = configuration
+        self.filename = filename
+        self.rotation = rotation
+        self.fontsize = fontsize
+        
+        if colors is not None:
+            self.colors = [COLORS[c] for c in colors]
+            self.color_box = Box(self.colors, self.configuration)
+            print(self.color_box.elements)
+        
+        # Build SVG grid object
+        self.box = Box(self.sequence, self.configuration)
+        self.drawing = Drawing(self.box, filename=self.filename, element_size=self.fontsize, color_box=self.color_box)
+        
+    @property
+    def string(self):
+        """ Return svg as a string. """
+        return self.drawing.tostring()
+
+    @property
+    def notebook(self):
+        """ Display SVG in Jupyther notebook. """
+        
+        # Import IPython display for notebook
+        from IPython.display import SVG as ipython_display
+        
+        # Display in notebook
+        return ipython_display(self.string)
+    
+    @staticmethod
+    def rotate(configuration, rotation):
+        # Rotate svg if desired.
+        n = int(rotation/90)
+        for i in range(n):
+            configuration = "".join([ROTATE[c] for c in configuration])
+        return configuration, rotation
+    
+    def save(self):
+        """ save svg """
+        self.drawing.save()
+        
+    def draw(self):
+        """ Draw svg of configuration """   
+        # If using IPython, try to print to notebook
+        try:
+            return self.notebook
+            
+        except ImportError:
+            raise Warning(""" IPython not installed. """)
+
+
 class Add:
     
     def __init__(self, drawing, fontsize=20):
-        """ Class for adding objects to lattice model svgwrite drawing object."""
+        """ 
+            A class that handles scaling and adding SVG items to SVG drawing -- specifically
+            for the purpose of drawing lattice proteins on a 2d grid. 
+        """
         self.drawing = drawing
         self.fontsize = fontsize
         self.stepsize = 0.25*fontsize
@@ -41,11 +162,11 @@ class Add:
         end = (x,y-self.stepsize)
         self.line(start,end)
 
-    def letter(self, x, y, char):
+    def letter(self, x, y, char, color="black"):
         """ Add letter to grid where residues exist. """
         xoffset = -self.stepsize-0.1*self.stepsize
         yoffset = self.stepsize
-        letter = self.drawing.text(char, insert=(x+xoffset,y+ yoffset), style="font-size:"+str(self.fontsize)+"px;font-family:Courier")
+        letter = self.drawing.text(char, insert=(x+xoffset,y+ yoffset), style="font-size:"+str(self.fontsize)+"px;font-family:Courier;fill:" + str(color))
         return self.drawing.add(letter)
         
     def dot(self, x, y):
@@ -55,10 +176,18 @@ class Add:
         letter = self.drawing.text('.', insert=(x+xoffset,y+ yoffset), style="font-size:"+str(self.fontsize)+"px;font-family:Courier")
         return self.drawing.add(letter)
 
+
+
 class Box(object):
     
     def __init__(self, sequence, configuration):
-        """ Build the svg box object. """
+        """ 
+            Builds a 2d grid/box of the sequence and its configuration.
+            
+            Useful for determining the size, height, and width of configurations total grid
+            
+            Pads the configuration with one layer of dots around the folded sequence.
+        """
         # Create a grid object to get box size and place.
         self.elements = self.build(sequence, configuration)
         self.height = len(self.elements)
@@ -139,13 +268,20 @@ class Box(object):
 
         return grid
 
+
 class Drawing(svgwrite.Drawing):
     
-    def __init__(self, box, filename="untitled.svg", element_size=20):
-        """ Hijack svgwrite's Drawing object and fill in with specific settings. """
+    def __init__(self, box, filename="untitled.svg", element_size=20, color_box=None):
+        """ 
+            Hijack svgwrite's Drawing object and make a protein lattice 
+            specific SVG drawing.
+            
+            Takes a box object and turns it into an SVG drawing.
+        """
         
         # Set grid
         self.box = box
+        self.color_box = color_box
         
         # Calculate the ysize of each element
         self.yelement_size = element_size
@@ -193,69 +329,13 @@ class Drawing(svgwrite.Drawing):
                         # Add element
                         item(2*self.offset+self.scale*x, 2*self.offset+self.scale*y)
                         
-                        #item(self.width+self.scale*i, self.height+self.scale*j)
-
                 # Otherwise its a letter
                 except KeyError:
                     
-                    self.add_to_svg.letter(2*self.offset+self.scale*x, 2*self.offset+self.scale*y, self.box.elements[y][x])
+                    # Add color to specific letters if given
+                    if self.color_box is not None:
+                        color = self.color_box.elements[y][x]
+                    else:
+                        color = 'black'
                     
-                    #self.add_to_svg.letter(self.width+self.scale*i, self.height+self.scale*j, self.box.elements[i][j])
-                    
-        
-
-
-class Configuration:
-
-    def __init__(self, sequence, configuration, filename="untitled.svg", rotation=0, fontsize=20):
-        """ Class for drawing an SVG representation of lattice conformation. """
-        
-        # Rotate configuration if given
-        configuration, rotation = self.rotate(configuration, rotation)
-        
-        # Set sequence and configuration
-        self.sequence = sequence
-        self.configuration = configuration
-        self.filename = filename
-        self.rotation = rotation
-        self.fontsize = fontsize
-        
-        # Build SVG grid object
-        self.box = Box(self.sequence, self.configuration)
-        self.drawing = Drawing(self.box, filename=self.filename, element_size=self.fontsize)
-        
-    @property
-    def string(self):
-        """ Return svg as a string. """
-        return self.drawing.tostring()
-
-    @property
-    def notebook(self):
-        """ Display SVG in Jupyther notebook. """
-        
-        # Import IPython display for notebook
-        from IPython.display import SVG as ipython_display
-        
-        # Display in notebook
-        return ipython_display(self.string)
-    
-    @staticmethod
-    def rotate(configuration, rotation):
-        # Rotate svg if desired.
-        n = int(rotation/90)
-        for i in range(n):
-            configuration = "".join([ROTATE[c] for c in configuration])
-        return configuration, rotation
-    
-    def save(self):
-        """ save svg """
-        self.drawing.save()
-        
-    def draw(self):
-        """ Draw svg of configuration """   
-        # If using IPython, try to print to notebook
-        try:
-            return self.notebook
-            
-        except ImportError:
-            raise Warning(""" IPython not installed. """)
+                    self.add_to_svg.letter(2*self.offset+self.scale*x, 2*self.offset+self.scale*y, self.box.elements[y][x], color=color)
