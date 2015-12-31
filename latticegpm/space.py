@@ -60,10 +60,12 @@ class LatticeConformationSpace(LatticeMap):
         # Determine lattice protein native fold conformation.
         for i in range(self.n):
             fold = self.conformations.FoldSequence(self.genotypes[i], self.temperature, target_conf=self.target_conf)
+            
             # If the lattice protein does not have a stable native state, do not fold protein (i.e. stability = 0)
             if fold[1] is None:
                 self._phenotypes[i] = 0
                 confs[i] = "U" * (self.length-1)
+            
             # Else store stabilities and conformations
             else:
                 self._phenotypes[i] = fold[0]
@@ -76,7 +78,7 @@ class LatticeConformationSpace(LatticeMap):
         # Set all conformations in the space.
         self.confs = confs
 
-    def modify_stabilities(self, z_confs):
+    def redefine_partition(self, z_confs):
         """ Calculate stabilities with a new set of states in partition function.
             Note that this changes the phenotypes in place.
 
@@ -104,8 +106,10 @@ class LatticeConformationSpace(LatticeMap):
             for conf in self.z_confs:
                 # Calculate folding energies of configuration
                 fe = fold_energy(self.genotypes[i],conf)
+                
                 # Add config to partition function
                 z += np.exp(-fe/self.temperature)
+                
                 # Store this energie for latter
                 conf_energies.append(fe)
 
