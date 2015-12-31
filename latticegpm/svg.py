@@ -77,7 +77,8 @@ class Configuration:
         if colors is not None:
             self.colors = [COLORS[c] for c in colors]
             self.color_box = Box(self.colors, self.configuration)
-            print(self.color_box.elements)
+        else:
+            self.color_box = None
         
         # Build SVG grid object
         self.box = Box(self.sequence, self.configuration)
