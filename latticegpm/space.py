@@ -120,7 +120,7 @@ class LatticeConformationSpace(LatticeMap):
             energies[i] = min(conf_energies)
 
         # Calculate the stabilities
-        stabilities = energies - self.temperature * np.log(partition - np.exp(-energies/self.temperature))
+        stabilities = energies + self.temperature * np.log(partition - np.exp(-energies/self.temperature))
         
         # Quality control... any NaN stabilities get set to 0 stability
         self._phenotypes = np.nan_to_num(stabilities)
