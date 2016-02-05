@@ -52,6 +52,16 @@ class LatticeConformationSpace(LatticeMap):
         # Fold proteins and calculate stabilities
         self.fold_proteins()
 
+    def get_native_energy(self, genotype=self.wildtype):
+        """ Get the native energy of genotype in space. """
+        # Map genotypes to confs for quick search
+        mapping = self.get_map("genotypes", "confs")
+        
+        # Get conformation of genotype
+        conf = mapping[genotype]
+        
+        return fold_energy(genotype, conf)
+
     def fold_proteins(self):
         """ Fold all sequences in protein sequence space. """
         # Fold proteins and extract stability parameter and native conformations
