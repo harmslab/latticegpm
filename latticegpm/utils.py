@@ -1,5 +1,13 @@
+#
+# This module contains random functions that I found useful for probing
+# lattice protein sequence space. Note: these were not designed with 
+# speed/efficiency in mind. They are bit crude in their implementation.
+#
+
+
 import itertools as it
 import numpy as np
+
 # ------------------------------------------------------------
 # Jesse Bloom's Lattice Model imports
 # ------------------------------------------------------------
@@ -29,7 +37,7 @@ def mutations_map(s1, s2):
             mutations[i] = [s1[i], s2[i]]
     return mutations
 
-def fold_energy(sequence, conformation):
+def fold_energy(sequence, conformation, interactions=miyazawa_jernigan):
     """ Calculate the energy of the sequence with the given conformation. 
     
         Args:
@@ -45,7 +53,7 @@ def fold_energy(sequence, conformation):
             energy of the conformation (sum of all contact energies)
     """
     contacts = lattice_contacts(sequence, conformation)
-    energy = sum([miyazawa_jernigan[c] for c in contacts])
+    energy = sum([interactions[c] for c in contacts])
     return energy
     
 def lattice_contacts(sequence, conformation):
@@ -74,10 +82,9 @@ def lattice_contacts(sequence, conformation):
     # build a coordinate system, note that odd rotation of intuitive coordinates
     # since we are working in numpy array grid.
     coordinates = {"U": [-1,0], "D":[1,0], "L":[0,-1], "R":[0,1]}
-    grid = np.zeros((length+1, length+1), dtype=str)
+    grid = np.zeros((2*length+1, 2*length+1), dtype=str)
     x = y = round(length/2.0) # initial position on the grid is at the center of the 2d array
     grid[x,y] = sites[0]
-    
     # move on grid, populate with amino acid at that site, and store all contacting neighbors. 
     contacts = []
     for i in range(length-1):
@@ -100,7 +107,7 @@ def lattice_contacts(sequence, conformation):
 
 def search_conformation_space(Conformations, temperature, threshold, target_conf=None, differby=None, max_iter=1000):
     """ Randomly search the conformations landscape for two sequences that 
-        fold with energy below some threshold and differ at all sites. 
+        fold with stability below some threshold and differ at all sites. 
         
         Args:
         ----
@@ -109,7 +116,7 @@ def search_conformation_space(Conformations, temperature, threshold, target_conf
         temperature: float
             Temperature parameter (ratio to kT)
         threshold: float
-            Maximum allowed binding energy for landscape
+            Maximum allowed stability for landscape
         
         Returns:
         -------

@@ -52,30 +52,34 @@ class LatticeConformationSpace(LatticeMap):
         # Fold proteins and calculate stabilities
         self.fold_proteins()
 
-    def get_native_energy(self, genotype=self.wildtype):
+    def get_native_energy(self, genotype=None):
         """ Get the native energy of genotype in space. """
+
+        if genotype == None:
+            genotype = self.wildtype
+
         # Map genotypes to confs for quick search
         mapping = self.get_map("genotypes", "confs")
-        
+
         # Get conformation of genotype
         conf = mapping[genotype]
-        
-        return fold_energy(genotype, conf)
+
+        return fold_energy(genotype, conf, self.conformations._interaction_energies)
 
     def fold_proteins(self):
         """ Fold all sequences in protein sequence space. """
         # Fold proteins and extract stability parameter and native conformations
-        confs = np.zeros(self.n,dtype="<U" +str(self.length))
+        confs = np.empty(self.n,dtype="<U" +str(self.length))
 
         # Determine lattice protein native fold conformation.
         for i in range(self.n):
             fold = self.conformations.FoldSequence(self.genotypes[i], self.temperature, target_conf=self.target_conf)
-            
+
             # If the lattice protein does not have a stable native state, do not fold protein (i.e. stability = 0)
             if fold[1] is None:
                 self._phenotypes[i] = 0
                 confs[i] = "U" * (self.length-1)
-            
+
             # Else store stabilities and conformations
             else:
                 self._phenotypes[i] = fold[0]
@@ -88,9 +92,11 @@ class LatticeConformationSpace(LatticeMap):
         # Set all conformations in the space.
         self.confs = confs
 
-    def redefine_partition(self, z_confs):
+    def redefine_partition(self, z_confs, target_conf=None):
         """ Calculate stabilities with a new set of states in partition function.
             Note that this changes the phenotypes in place.
+
+            Note that the partition conformations always include the E=0 state (unfolded).
 
             __Arguments__:
 
@@ -107,33 +113,64 @@ class LatticeConformationSpace(LatticeMap):
         # Calculate the partition functions.
         partition = np.empty(self.n, dtype=float)
         energies = np.empty(self.n, dtype=float)
+        confs = np.empty(self.n, dtype="<U" +str(self.length))
 
         for i in range(self.n):
             # Sum over all conformations in z_conf for genotype i
-            z = 0
+            z = 0   # Start with the completely unfolded conformation
 
-            conf_energies = []
+            # The completely unfolded state is a possible configuration
+            conf_energies = [0]
+            min_conf = ""
+            min_energy = 0
+            nonnative = True
+
             for conf in self.z_confs:
                 # Calculate folding energies of configuration
-                fe = fold_energy(self.genotypes[i],conf)
-                
+                fe = fold_energy(self.genotypes[i], conf, self.conformations._interaction_energies)
+
                 # Add config to partition function
                 z += np.exp(-fe/self.temperature)
-                
+
                 # Store this energie for latter
                 conf_energies.append(fe)
+
+                # Set the minimum energy.
+                if fe < min_energy:
+                    min_energy = fe
+                    min_conf = conf
+                    nonnative=False
+
+                # If it's not a single lowest state, its nonnative.
+                elif fe == min_energy:
+                    nonnative=True
 
             # Set partition functions
             partition[i] = z
 
-            # Find energy minimum from allowed conformations, this becomes native state.
-            energies[i] = min(conf_energies)
+            # If target conformation is given, use it as native state.
+            if target_conf is not None:
+                energies[i] = fold_energy(self.genotypes[i], target_conf, self.conformations._interaction_energies)
+
+            # set the non-native
+            elif nonnative:
+                confs[i] = "U" * (self.length-1)
+                energies[i] = 0
+
+            else:
+                # Find energy minimum from allowed conformations, this becomes native state.
+                energies[i] = min_energy
+                confs[i] = min_conf
 
         # Calculate the stabilities
+        # NOTE: We add the 1 in the log for the completely unfolded state. This is added separately
+        # to properly handle cases when the partition function is *very* large and thus, the difference
+        # is too small and the 1 is lost numerically.
         stabilities = energies + self.temperature * np.log(partition - np.exp(-energies/self.temperature))
-        
+
         # Quality control... any NaN stabilities get set to 0 stability
         self._phenotypes = np.nan_to_num(stabilities)
+        self.confs = confs
 
         return self.phenotypes
 
