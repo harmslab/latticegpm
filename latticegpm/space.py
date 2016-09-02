@@ -1,178 +1,216 @@
+import os
 import numpy as np
 from latticeproteins.conformations import Conformations, BindLigand, PrintConformation
-from latticegpm.utils import enumerate_space, fold_energy, ConformationError
-from latticegpm.mapping import LatticeMap, LatticeFitnessMap
+from latticeproteins.interactions import miyazawa_jernigan
+from latticegpm.utils import fold_energy, ConformationError
 
 # use space enumeration
-from seqspace.utils import binary_mutations_map
+from seqspace.gpm import GenotypePhenotypeMap
+from seqspace.utils import binary_mutations_map, enumerate_space
+
 # ------------------------------------------------------
 # Build a binary protein lattice model sequence space
 # with fitness defined by function in Jesse Blooms'
 # latticeproteins python package.
 # ------------------------------------------------------
 
-class LatticeConformationSpace(LatticeMap):
+class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
+    """Construct a genotype-phenotype map from 2d protein lattice models. Genotypes
+    are represented by
 
-    def __init__(self, wildtype, mutant, conformations, target_conf=None, temperature=1.0):
-        """ Build a protein lattice model sequence space from a conformation space.
+    Parameters
+    ----------
+    wildtype : str
+        Wildtype sequence
+    mutant : str
+        Mutant sequence
+    target_conf : str (optional)
+        String that describes the target conformation to fold each sequence to.
+    temperature : float
+        temperature parameter for calculating folding stability.
+    n_conformations : int
+        number of conformations that should be in space (raise error if more)
+    conformations : Conformations object
+        latticeproteins.conformations object for all conformations for
+        strings with len(wildtype)
 
-            Parameters:
-            ----------
-            wildtype: str
-                Wildtype sequence
-            mutant: str
-                Mutant sequence
-            conformations: Conformations object
-                latticeproteins.conformations object for all conformations for
-                strings with len(wildtype)
-            target_conf: str (optional)
-                String that describes the target conformation to fold each sequence to.
-            temperature: float
-                temperature parameter for calculating folding stability.
-            n_conformations: int
-                number of conformations that should be in space (raise error if more)
+    Attributes
+    ----------
+    temperature : float
+        temperature of the system
+    target_conf : string
+        target conformation for all sequences
+    interaction_energies : dictionary
+        mapping all contact pairs to their corresponding energies
+    energies : array of floats
+        native energies of all sequences
+    stabilities : array of floats
+        stabilities of native states for all sequences
+    fitnesses : array of floats
+        fitnesses of all sequences
+    conformations : array of strings
+        native conformations of all sequences
+    partition_sum : array of float
+        boltzmann weighted sum of all conformation/energies
+    fold : boolean
+        folded or not?
 
-        """
+    For more attributes, see GenotypePhenotypeMap in `seqspace` package.
+    """
+    def __init__(self, wildtype,
+            mutations,
+            target_conf=None,
+            temperature=1.0,
+            conformations=None,
+            interaction_energies=miyazawa_jernigan,
+            database_dir="database/",
+        ):
         # Construct a mutational mapping dictionary
-        mutations = binary_mutations_map(wildtype, mutant)
-
-        # Produce a binary sequence space between two sequences.
-        genotypes = enumerate_space(wildtype, mutant)
-
-        # Initialize a phenotypes array.
-        phenotypes = np.zeros(len(genotypes), dtype=float)
-
+        self.wildtype = wildtype
+        self.mutations = mutations
         # Set initial properties of sequence space.
         self.temperature = temperature
         self.target_conf = target_conf
-
+        self.interaction_energies = interaction_energies
+        # Initialize a phenotypes array.
+        phenotypes = np.empty(len(genotypes), dtype=float)
+        # Construct a genotype-phenotype map
         super(LatticeMap, self).__init__(wildtype, genotypes, phenotypes, mutations=mutations)
-        self.conformations = conformations
-
+        # Make a conformations database.
+        if not os.path.exist(database_dir):
+            os.makedirs(database_dir)
+        # Construct conformations database.
+        self.Conformations = Conformations(self.length, database_dir, interaction_energies=interaction_energies)
+        # Set the fitness.
+        self.Fitness = Fitness(self.temperature, self.Conformations,
+            dGdependence=None,
+            targets=target_conf)
         # Fold proteins and calculate stabilities
-        self.fold_proteins()
+        self.build()
 
-    def get_native_energy(self, genotype=None):
-        """ Get the native energy of genotype in space. """
+    @property
+    def phenotypes(self):
+        """Get the phenotypes, specified by phenotype_type attribute.
+        """
+        return getattr(self, self.phenotype_type)
 
-        if genotype == None:
-            genotype = self.wildtype
+    def build(self):
+        """Build the LatticeGenotypePhenotypeMap from `latticeprotein` package.
 
-        # Map genotypes to confs for quick search
-        mapping = self.get_map("genotypes", "confs")
+        Uses the `latticeprotein` package to calculate the following attributes
+        and add them to the genotype-phenotype map.
 
-        # Get conformation of genotype
-        conf = mapping[genotype]
+        Attributes
+        ----------
+        energies : array of floats
+            native energies of all sequences
+        stabilities : array of floats
+            stabilities of native states for all sequences
+        fitnesses : array of floats
+            fitnesses of all sequences
+        conformations : array of strings
+            native conformations of all sequences
+        partition_sum : array of float
+            boltzmann weighted sum of all conformation/energies
+        fold : boolean
+            folded or not?
+        """
+        self.energies = np.empty(self.n, dtype=float)
+        self.stabilities = np.empty(self.n, dtype=float)
+        self.fitnesses = np.empty(self.n, dtype=float)
+        self.conformations = np.empty(self, dtype=str)
+        self.partition_sum = np.empty(self.n, dtype=float)
+        self.fold = np.empty(self.n, dtype=bool)
+        for i, g in enumerate(self.genotypes):
+            results = self.Fitness._AllMetrics(g)
+            self.energies[i] = results[0]
+            self.stabilites = results[1]
+            self.fitnesses[i] = results[2]
+            self.conformations[i] = results[3]
+            self.partition_sum = results[4]
+            self.fold[i] = results[-1]
 
-        return fold_energy(genotype, conf, self.conformations._interaction_energies)
+    @classmethod
+    def with_length(cls, length, **kwargs):
+        """Searches regions of sequences space for a lattice proteins
+        with the given length on calculates their fitness.
+        """
+        
+        #return cls()
 
-    def fold_proteins(self):
-        """ Fold all sequences in protein sequence space. """
-        # Fold proteins and extract stability parameter and native conformations
-        confs = np.empty(self.n,dtype="<U" +str(self.length))
+    @classmethod
+    def with_genotypes(cls, sequences, **kwargs):
+        """Calculates a set of lattice proteins from sequences.
+        """
+        pass
+        #return cls()
 
-        # Determine lattice protein native fold conformation.
-        for i in range(self.n):
-            fold = self.conformations.FoldSequence(self.genotypes[i], self.temperature, target_conf=self.target_conf)
+    def set_phenotypes(self, attr="stabilities"):
+        """Set the phenotype to a different attribute.
+        """
+        self.phenotype_type = attr
 
-            # If the lattice protein does not have a stable native state, do not fold protein (i.e. stability = 0)
-            if fold[1] is None:
-                self._phenotypes[i] = 0
-                confs[i] = "U" * (self.length-1)
+    def recalculate_partition_sum(self, zconfs, target_conf=None):
+        """Recalculate stabilities for all sequences with new manually defined
+        states in partition function.
 
-            # Else store stabilities and conformations
-            else:
-                self._phenotypes[i] = fold[0]
-                confs[i] = fold[1]
+        Note that the partition conformations always include the E=0 state (unfolded).
 
-        # Find all unique conformations
-        self.unique_confs = np.unique(confs)
-        self.n_conformations = len(self.unique_confs)
+        Parameters
+        ----------
+        z_confs : lists
+            conformations to include in partition func for stability calculations.
 
-        # Set all conformations in the space.
-        self.confs = confs
-
-    def redefine_partition(self, z_confs, target_conf=None):
-        """ Calculate stabilities with a new set of states in partition function.
-            Note that this changes the phenotypes in place.
-
-            Note that the partition conformations always include the E=0 state (unfolded).
-
-            __Arguments__:
-
-            `z_confs` [list] : conformations to include in partition func
-            for stability calculations.
-
-            __Returns__:
-
-            `phenotypes` [array] : Array of stabilities recalculated.
+        Returns
+        -------
+        phenotypes : array
+            Array of stabilities recalculated.
         """
         # Set the partition function conformations as a attribute of the space.
         self.z_confs = z_confs
-
-        # Calculate the partition functions.
-        partition = np.empty(self.n, dtype=float)
-        energies = np.empty(self.n, dtype=float)
-        confs = np.empty(self.n, dtype="<U" +str(self.length))
-
         for i in range(self.n):
             # Sum over all conformations in z_conf for genotype i
             z = 0   # Start with the completely unfolded conformation
-
             # The completely unfolded state is a possible configuration
             conf_energies = [0]
             min_conf = ""
             min_energy = 0
-            nonnative = True
-
+            fold = True
             for conf in self.z_confs:
                 # Calculate folding energies of configuration
-                fe = fold_energy(self.genotypes[i], conf, self.conformations._interaction_energies)
-
+                fe = fold_energy(self.genotypes[i], conf, self.interaction_energies)
                 # Add config to partition function
                 z += np.exp(-fe/self.temperature)
-
                 # Store this energie for latter
                 conf_energies.append(fe)
-
                 # Set the minimum energy.
                 if fe < min_energy:
                     min_energy = fe
                     min_conf = conf
-                    nonnative=False
-
+                    fold=True
                 # If it's not a single lowest state, its nonnative.
                 elif fe == min_energy:
-                    nonnative=True
-
+                    fold=False
             # Set partition functions
-            partition[i] = z
-
+            self.fold[i] = fold
+            self.partition_sum[i] = z
             # If target conformation is given, use it as native state.
             if target_conf is not None:
-                energies[i] = fold_energy(self.genotypes[i], target_conf, self.conformations._interaction_energies)
-
+                self.energies[i] = fold_energy(self.genotypes[i], target_conf, self.interaction_energies)
             # set the non-native
-            elif nonnative:
-                confs[i] = "U" * (self.length-1)
-                energies[i] = 0
-
-            else:
+            elif fold:
                 # Find energy minimum from allowed conformations, this becomes native state.
-                energies[i] = min_energy
-                confs[i] = min_conf
-
-        # Calculate the stabilities
-        # NOTE: We add the 1 in the log for the completely unfolded state. This is added separately
-        # to properly handle cases when the partition function is *very* large and thus, the difference
-        # is too small and the 1 is lost numerically.
-        stabilities = energies + self.temperature * np.log(partition - np.exp(-energies/self.temperature))
-
-        # Quality control... any NaN stabilities get set to 0 stability
-        self._phenotypes = np.nan_to_num(stabilities)
-        self.confs = confs
-
-        return self.phenotypes
+                self.energies[i] = min_energy
+                self.conformations[i] = min_conf
+            else:
+                self.conformations[i] = "U" * (self.length-1)
+                self.energies[i] = 0
+            # Prepare options for calcs below.
+            info = [self.conformations[i], self.partition_sum[i], 0, self.fold[i]]
+            # Calculate stability
+            self.stabilities[i] = self.Fitness._Stabilty(self.energies[i], *info)
+            # Calculate the fold
+            self.fitnesses[i] = self.Fitness._Fitness(self.energies[i], *info)
 
     def print_sequences(self, sequences):
         """ Print sequence conformation with/without ligand bound. """
@@ -181,54 +219,3 @@ class LatticeConformationSpace(LatticeMap):
         seq2conf = self.get_map("genotypes", "confs")
         for s in sequences:
             PrintConformation(s, seq2conf[s])
-
-
-class LatticeFitnessSpace(LatticeFitnessMap):
-
-    def __init__(self, wildtype, mutant, Fitness):
-        """ Build a protein lattice model sequence space from a given fitness function.
-
-            Parameters:
-            ----------
-            wildtype: str
-                Wildtype sequence
-            mutant: str
-                Mutant sequence
-            Fitness: Fitness object
-                latticeproteins.fitness object for protein that binds a ligand.
-        """
-        self.sequences = enumerate_space(wildtype, mutant)
-        self.wildtype = wildtype
-        self.temperature = Fitness._temp
-        # Check that the fitness landscape describes ligand binding.
-        if Fitness._ligand is None:
-            raise Exception("The Fitness object must be associated with ligand binding for this analysis. ")
-        else:
-            self.ligand_tup = Fitness._ligand
-
-        # Fold proteins and extract stability parameter and native conformations
-        folds = np.array([Fitness._conformations.FoldSequence(s, self.temperature) for s in self.sequences])
-        self.stabilities = np.array(folds[:,0], dtype=float)
-        self.conformations = folds[:,1]
-
-        # Calculate binding energies and fitnesses (fitness = exp(-be))
-        binding_energies = np.empty(self.n, dtype=float)
-        for i in self._indices:
-            if self.conformations[i] is None:
-                binding_energies[i] = 0
-            else:
-                binding_energies[i] = BindLigand(self.sequences[i], self.conformations[i], self.ligand, self.ligand_conformation, numsaved=100000)[0]
-        self.fitnesses = np.exp(-1*binding_energies)
-
-    def print_sequences(self, sequences, with_ligand=False):
-        """ Print sequence conformation with/without ligand bound. """
-        seq2conf = self.seq2conformation
-        # Include ligand?
-        if with_ligand:
-            for s in sequences:
-                be, x,y, conf = BindLigand(s, seq2conf[s], self.ligand, self.ligand_conformation)
-                ligand_stuff = (self.ligand, conf, x, y)
-                PrintConformation(s, seq2conf[s], ligand_tup = ligand_stuff)
-        else:
-            for s in sequences:
-                PrintConformation(s, seq2conf[s])
