@@ -2,7 +2,9 @@ import os
 import numpy as np
 from latticeproteins.conformations import Conformations, BindLigand, PrintConformation
 from latticeproteins.interactions import miyazawa_jernigan
+from latticeproteins.sequences import RandomSequence
 from latticegpm.utils import fold_energy, ConformationError
+from . import search
 
 # use space enumeration
 from seqspace.gpm import GenotypePhenotypeMap
@@ -61,7 +63,6 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
             mutations,
             target_conf=None,
             temperature=1.0,
-            conformations=None,
             interaction_energies=miyazawa_jernigan,
             database_dir="database/",
         ):
@@ -131,11 +132,15 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
             self.fold[i] = results[-1]
 
     @classmethod
-    def with_length(cls, length, **kwargs):
+    def with_length(cls, length, temperature=1.0, differby=None, **kwargs):
         """Searches regions of sequences space for a lattice proteins
         with the given length on calculates their fitness.
         """
-        
+        seq1, seq2 = search.sequence_space(length, temperature,
+            differby=differby,
+            **kwargs)
+
+        return cls(seq1, )
         #return cls()
 
     @classmethod

@@ -4,14 +4,13 @@
 # speed/efficiency in mind. They are bit crude in their implementation.
 #
 
-
 import itertools as it
 import numpy as np
 
 # ------------------------------------------------------------
 # Jesse Bloom's Lattice Model imports
 # ------------------------------------------------------------
-from latticeproteins.sequences import HammingDistance, RandomSequence, NMutants
+from latticeproteins.sequences import HammingDistance
 from latticeproteins.interactions import miyazawa_jernigan
 
 class ConformationError(Exception):
@@ -25,7 +24,7 @@ def mutations_map(s1, s2):
     """ Construct a mutations dictionary for latticegpm between
     to sequences, s1 and s2.
 
-    Example:
+    Example
     -------
         {site-number: [alphabet]}
     """
@@ -42,14 +41,14 @@ def fold_energy(sequence, conformation, interactions=miyazawa_jernigan):
 
     Parameters
     ----------
-    sequence: str
+    sequence : str
         Amino acid sequence to fold.
-    conformation: str
+    conformation : str
         Conformation according to latticemodel's conformations format (e.g. 'UDLLDRU')
 
     Returns
     ------
-    energy: float
+    energy : float
         energy of the conformation (sum of all contact energies)
     """
     contacts = lattice_contacts(sequence, conformation)

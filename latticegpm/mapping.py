@@ -4,10 +4,10 @@ from latticeproteins.conformations import PrintConformation
 from latticeproteins.sequences import HammingDistance
 from seqspace.gpm import GenotypePhenotypeMap
 
-class LatticeMap(GenotypePhenotypeMap):
-
+class LatticeBaseMap(GenotypePhenotypeMap):
+    """
+    """
     def __init__(self, wildtype, genotypes, phenotypes, mutations=None):
-        """ """
         super(LatticeMap, self).__init__(self, wildtype, genotypes, phenotypes, mutations=mutations)
 
     # ----------------------------------------
@@ -16,18 +16,42 @@ class LatticeMap(GenotypePhenotypeMap):
 
     @property
     def temperature(self):
-        """ Get temperature of the system. """
+        """Get temperature of the system. """
         return self._temperature
 
     @property
     def stabilities(self):
-        """ Get the dGs of the each sequence. """
+        """Get the dGs of the each sequence. """
         return self._stabilities
 
     @property
     def conformations(self):
-        """ Get the native conformations of the each sequence. """
+        """Get the native conformations of the each sequence. """
         return self._conformations
+
+    @property
+    def energies(self):
+        """Get the native energies of all genotypes"""
+        self._energies
+
+    @property
+    def fitnesses(self):
+        """Get the fitness of genotypes.
+        """
+        self._fitnesses
+
+    @property
+    def unique_conformations(self):
+        """return an array of conformations that are unique.
+        """
+        return np.unique(self._conformations)
+
+    @property
+    def n_conformations(self):
+        """Return the number of unique conformations
+        """
+        # Find all unique conformations
+        return len(self.unique_conformations)
 
     # -------------------------------------------
     # Setting methods for properties
@@ -48,67 +72,4 @@ class LatticeMap(GenotypePhenotypeMap):
     def stabilities(self, stabilities):
         """ Set dGs of all native conformations of sequences in map.
         """
-        if type(stabilities) is dict:
-            self._stabilities = self._if_dict(stabilities)
-        else:
-            if len(stabilities) != len(self.genotypes):
-                raise("Number of stabilities does not equal number of sequences.")
-            else:
-                self._stabilities = stabilities
-
-class LatticeFitnessMap(LatticeMap):
-
-    # ----------------------------------------
-    # Get Properties of the Lattice Map
-    # ----------------------------------------
-
-    @property
-    def fitnesses(self):
-        """ Get fitness. """
-        return self._fitnesses
-
-    @property
-    def ligand_tup(self):
-        """ Get ligand tuple (ligand sequence, ligand conformation, stability cutoff). """
-        return self.ligand_tup
-
-    @property
-    def ligand(self):
-        """ Get ligand sequence"""
-        return self._ligand_tup[0]
-
-    @property
-    def ligand_conformation(self):
-        """ Get ligand conformation. """
-        return self._ligand_tup[1]
-
-    # -------------------------------------------
-    # Setting methods for properties
-    # -------------------------------------------
-
-    @ligand.setter
-    def ligand_tup(self, ligand):
-        """ Set the ligand for binding fitnesses. """
-        if type(ligand) != tuple:
-            raise TypeError("ligand must be type==tuple.")
-        self._ligand_tup = ligand
-
-    @fitnesses.setter
-    def fitnesses(self, fitnesses):
-        """ NORMALIZE and set fitnesses from ordered list of fitnesses
-
-            Args:
-            -----
-            fitnesses: array-like or dict
-                if array-like, it musted be ordered by sequences; if dict,
-                this method automatically orders the fitnesses into numpy
-                array.
-        """
-        if type(fitnesses) is dict:
-            self._fitnesses = self._if_dict(fitnesses)/fitnesses[self.wildtype]
-        else:
-            if len(fitnesses) != len(self._sequences):
-                raise("Number of phenotypes does not equal number of sequences.")
-            else:
-                wildtype_index = self.seq2index[self.wildtype]
-                self._fitnesses = fitnesses/fitnesses[wildtype_index]
+        self._stabilities = stabilities
