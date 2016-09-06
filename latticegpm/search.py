@@ -1,7 +1,16 @@
+import os
+
+from latticeproteins.fitness import Fitness
+from latticeproteins.interactions import miyazawa_jernigan
 from latticeproteins.sequences import RandomSequence, NMutants
 from latticeproteins.conformations import Conformations
 
-def sequence_space(length, temperature, threshold, target_conf=None, differby=None, max_iter=1000):
+def sequence_space(length, temperature, threshold,
+    target_conf=None,
+    differby=None,
+    max_iter=1000,
+    interaction_energies=miyazawa_jernigan,
+    dGdependence="fracfolded"):
     """Randomly search sequence space for two sequences that
     fold with stability below some threshold and differ at a given number of sites.
 
@@ -20,24 +29,25 @@ def sequence_space(length, temperature, threshold, target_conf=None, differby=No
         List of two sequences that differ at all sites and fold.
     """
     # Make a conformations database.
-    if not os.path.exist("database/"):
-        os.makedirs("database/")
+    database_dir = "database/"
+    if not os.path.exists(database_dir):
+        os.makedirs(database_dir)
     # Check differby
     if differby is None:
         differby = length
     elif differby > length:
         raise Exception("differby cannot be larger than the length of the sequences.")
     # Construct conformations database.
-    Conformations = Conformations(length, database_dir, interaction_energies=interaction_energies)
+    conformations = Conformations(length, database_dir, interaction_energies=miyazawa_jernigan)
     # Set the fitness.
-    Fitness = Fitness(temperature, Conformations,
-        dGdependence=None,
+    fitness = Fitness(temperature, conformations,
+        dGdependence=dGdependence,
         targets=target_conf)
     # Find a sequence that's below a certain energy.
     energy = threshold
     while energy >= threshold:
         sequence = RandomSequence(length)
-        energy = Fitness.Stabilty(sequence)
+        energy = fitness.Stability(sequence)
     # Set the resulting sequence as the first variable
     sequence1 = ''.join(sequence)
     energy = threshold # Reset energy
@@ -47,7 +57,7 @@ def sequence_space(length, temperature, threshold, target_conf=None, differby=No
     while energy >= threshold:
         counter += 1
         sequence = RandomSequence(length)
-        energy = Fitness.Stabilty(sequence)
+        energy = fitness.Stability(sequence)
         # Check looping
         if counter >= max_iter:
             raise Exception("Reached max iteration in search.")
