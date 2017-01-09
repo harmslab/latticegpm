@@ -5,7 +5,7 @@ from latticeproteins.interactions import miyazawa_jernigan
 from latticeproteins.sequences import RandomSequence, NMutants
 from latticeproteins.conformations import Conformations
 
-def sequence_space(length, temperature, threshold,
+def sequence_space(length, temperature=1.0, threshold=0.0,
     target_conf=None,
     differby=None,
     max_iter=1000,
@@ -45,9 +45,14 @@ def sequence_space(length, temperature, threshold,
         targets=target_conf)
     # Find a sequence that's below a certain energy.
     energy = threshold
+    counter = -1
     while energy >= threshold:
         sequence = RandomSequence(length)
         energy = fitness.Stability(sequence)
+        # Check looping
+        if counter >= max_iter:
+            print(energy)
+            raise Exception("Reached max iteration in search.")
     # Set the resulting sequence as the first variable
     sequence1 = ''.join(sequence)
     energy = threshold # Reset energy

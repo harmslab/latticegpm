@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from latticeproteins.conformations import Conformations, BindLigand, PrintConformation
+from latticeproteins.fitness import Fitness
 from latticeproteins.interactions import miyazawa_jernigan
 from latticeproteins.sequences import RandomSequence
 from latticegpm.utils import fold_energy, ConformationError
@@ -8,7 +9,7 @@ from . import search
 
 # use space enumeration
 from seqspace.gpm import GenotypePhenotypeMap
-from seqspace.utils import binary_mutations_map, enumerate_space
+from seqspace.utils import binary_mutations_map, mutations_to_genotypes
 
 # ------------------------------------------------------
 # Build a binary protein lattice model sequence space
@@ -65,6 +66,8 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
             temperature=1.0,
             interaction_energies=miyazawa_jernigan,
             database_dir="database/",
+            phenotype_type="stabilities",
+            **kwargs
         ):
         # Construct a mutational mapping dictionary
         self.wildtype = wildtype
@@ -73,27 +76,29 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         self.temperature = temperature
         self.target_conf = target_conf
         self.interaction_energies = interaction_energies
+        self._phenotype_type = phenotype_type
         # Initialize a phenotypes array.
+        genotypes = mutations_to_genotypes(wildtype, mutations)
         phenotypes = np.empty(len(genotypes), dtype=float)
         # Construct a genotype-phenotype map
-        super(LatticeMap, self).__init__(wildtype, genotypes, phenotypes, mutations=mutations)
+        super(LatticeGenotypePhenotypeMap, self).__init__(wildtype, genotypes, phenotypes, mutations=mutations)
         # Make a conformations database.
-        if not os.path.exist(database_dir):
+        if not os.path.exists(database_dir):
             os.makedirs(database_dir)
         # Construct conformations database.
         self.Conformations = Conformations(self.length, database_dir, interaction_energies=interaction_energies)
         # Set the fitness.
         self.Fitness = Fitness(self.temperature, self.Conformations,
-            dGdependence=None,
+            dGdependence='fracfolded',
             targets=target_conf)
         # Fold proteins and calculate stabilities
         self.build()
 
-    @property
-    def phenotypes(self):
-        """Get the phenotypes, specified by phenotype_type attribute.
-        """
-        return getattr(self, self.phenotype_type)
+    #@property
+    #def phenotypes(self):
+    #    """Get the phenotypes, specified by phenotype_type attribute.
+    #    """
+    #    return getattr(self, self.phenotype_type)
 
     def build(self):
         """Build the LatticeGenotypePhenotypeMap from `latticeprotein` package.
@@ -119,41 +124,62 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         self.energies = np.empty(self.n, dtype=float)
         self.stabilities = np.empty(self.n, dtype=float)
         self.fitnesses = np.empty(self.n, dtype=float)
-        self.conformations = np.empty(self, dtype=str)
+        self.conformations = np.empty(self.n, dtype="<U" + str(self.length - 1))
         self.partition_sum = np.empty(self.n, dtype=float)
         self.fold = np.empty(self.n, dtype=bool)
         for i, g in enumerate(self.genotypes):
             results = self.Fitness._AllMetrics(g)
             self.energies[i] = results[0]
-            self.stabilites = results[1]
+            self.stabilities[i] = results[1]
             self.fitnesses[i] = results[2]
             self.conformations[i] = results[3]
             self.partition_sum = results[4]
             self.fold[i] = results[-1]
 
     @classmethod
-    def with_length(cls, length, temperature=1.0, differby=None, **kwargs):
+    def from_length(cls, length, **kwargs):
         """Searches regions of sequences space for a lattice proteins
         with the given length on calculates their fitness.
         """
-        seq1, seq2 = search.sequence_space(length, temperature,
-            differby=differby,
+        seq1, seq2 = search.sequence_space(length,
             **kwargs)
 
-        return cls(seq1, )
-        #return cls()
+        return cls.from_mutant(seq1, seq2, **kwargs)
 
-    @classmethod
-    def with_genotypes(cls, sequences, **kwargs):
-        """Calculates a set of lattice proteins from sequences.
+    @property
+    def phenotypes(self):
+        """Get phenotypes specified by phenotype_type."""
+        return getattr(self, self.phenotype_type)
+
+    @phenotypes.setter
+    def phenotypes(self, phenotypes):
+        """Set the phenotypes
         """
         pass
-        #return cls()
 
-    def set_phenotypes(self, attr="stabilities"):
-        """Set the phenotype to a different attribute.
+    @classmethod
+    def from_mutant(cls, wildtype, mutant, **kwargs):
+        """Create a binary genotype-phenotype map between a wildtype and mutant
         """
-        self.phenotype_type = attr
+        mutations = binary_mutations_map(wildtype, mutant)
+        return cls(wildtype, mutations, **kwargs)
+
+    @property
+    def phenotype_type(self):
+        """Set phenotype type. will be 'energies'|'stabilities'|'fitnesses'"""
+        return self._phenotype_type
+
+    @phenotype_type.setter
+    def phenotype_type(self, phenotype_type):
+        """Set phenotype type for this space. Must be 'energies'|'stabilities'|
+        'fitnesses'
+        """
+        # Check for valid types
+        types = ["energies", "stabilities", "fitnesses"]
+        if phenotype_type not in types:
+            raise Exception(str(phenotype_type) + " is not a valid phenotype type.")
+        else:
+            self._phenotype_type = phenotype_type
 
     def recalculate_partition_sum(self, zconfs, target_conf=None):
         """Recalculate stabilities for all sequences with new manually defined
