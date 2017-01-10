@@ -8,8 +8,8 @@ from latticegpm.utils import fold_energy, ConformationError
 from . import search
 
 # use space enumeration
-from seqspace.gpm import GenotypePhenotypeMap
-from seqspace.utils import binary_mutations_map, mutations_to_genotypes
+from gpmap.gpm import GenotypePhenotypeMap
+from gpmap.utils import binary_mutations_map, mutations_to_genotypes
 
 # ------------------------------------------------------
 # Build a binary protein lattice model sequence space
