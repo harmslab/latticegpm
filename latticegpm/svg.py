@@ -59,9 +59,6 @@ class Configuration:
                     colors=None,
                     rotation=0,
                     fontsize=20):
-
-
-
         # Rotate configuration if given
         configuration, rotation = self.rotate(configuration, rotation)
 

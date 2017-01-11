@@ -37,7 +37,7 @@ def mutations_map(s1, s2):
     return mutations
 
 def fold_energy(sequence, conformation, interactions=miyazawa_jernigan):
-    """ Calculate the energy of the sequence with the given conformation.
+    """Calculate the energy of the sequence with the given conformation.
 
     Parameters
     ----------
@@ -72,12 +72,10 @@ def lattice_contacts(sequence, conformation):
     """
     sites = list(sequence)
     length = len(sites)
-
     try:
         moves = list(conformation)
     except TypeError:
         raise ConformationError("""Protein conformation is None; is there a native state? """)
-
     # build a coordinate system, note that odd rotation of intuitive coordinates
     # since we are working in numpy array grid.
     coordinates = {"U": [-1,0], "D":[1,0], "L":[0,-1], "R":[0,1]}
@@ -93,12 +91,10 @@ def lattice_contacts(sequence, conformation):
         grid[x,y] = sites[i+1]
         neighbors = [sites[i+1] + grid[x+c[0], y+c[1]] for c in coordinates.values()]
         contacts += [n for n in neighbors if n in miyazawa_jernigan]
-
     # subtract the contacts that have bonds between them.
     for i in range(1,length):
         try:
             contacts.remove(sequence[i-1:i+1])
         except ValueError:
             contacts.remove(sequence[i] + sequence[i-1])
-
     return contacts
