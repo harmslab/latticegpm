@@ -128,21 +128,20 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         return 1 / (1 + np.exp(-self.stabilities/self.temperature))
 
     @classmethod
-    def from_length(cls, length, **kwargs):
+    def from_length(cls, length, Conformations, **kwargs):
         """Searches regions of sequences space for a lattice proteins
         with the given length on calculates their fitness.
         """
         seq1, seq2 = search.sequence_space(length,
             **kwargs)
-
-        return cls.from_mutant(seq1, seq2, **kwargs)
+        return cls.from_mutant(seq1, seq2, Conformations, **kwargs)
 
     @classmethod
-    def from_mutant(cls, wildtype, mutant, **kwargs):
+    def from_mutant(cls, wildtype, mutant, Conformations, **kwargs):
         """Create a binary genotype-phenotype map between a wildtype and mutant
         """
         mutations = binary_mutations_map(wildtype, mutant)
-        return cls(wildtype, mutations, **kwargs)
+        return cls(wildtype, mutations, Conformations, **kwargs)
 
     @property
     def phenotype_type(self):
