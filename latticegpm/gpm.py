@@ -1,3 +1,4 @@
+import json
 import numpy as np
 from latticeproteins.conformations import Conformations, PrintConformation
 from latticegpm.utils import fold_energy, ConformationError
@@ -72,7 +73,10 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         self.temperature = temperature
         self.target_conf = target_conf
         self.phenotype_type = phenotype_type
+        # Set some gpmap attrs
         self.log_transform = False
+        self.n_replicates = None
+        self.stdeviations = None
         # Construct conformations database.
         self.Conformations = Conformations
         # Initialize a phenotypes array.
@@ -83,11 +87,11 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         self.partition_sum = np.empty(self.n, dtype=float)
         self.folded = np.empty(self.n, dtype=bool)
         for i, g in enumerate(self.genotypes):
-                output = self.Conformations.FoldSequence(g, self.temperature, target_conf=target_conf)
-                self.nativeEs[i] = output[0]
-                self.confs[i] = output[1]
-                self.partition_sum[i] = output[2]
-                self.folded[i] = output[3]
+            output = self.Conformations.FoldSequence(g, self.temperature, target_conf=target_conf)
+            self.nativeEs[i] = output[0]
+            self.confs[i] = output[1]
+            self.partition_sum[i] = output[2]
+            self.folded[i] = output[3]
         # Construct a binary map for the lattice genotype-phenotype map.
         self.binary = BinaryMap(self)
 
@@ -142,6 +146,23 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         """
         mutations = binary_mutations_map(wildtype, mutant)
         return cls(wildtype, mutations, Conformations, **kwargs)
+
+    def to_json(self, filename):
+        """Write lattice genotype-phenotype map to json file.
+        """
+        data = dict(
+            wildtype=self.wildtype,
+            genotypes=list(self.genotypes),
+            nativeEs=list(self.nativeEs),
+            partition_sum=list(self.partition_sum),
+            confs=list(self.confs),
+            folded=list([bool(f) for f in self.folded]),
+            phenotype_type=self.phenotype_type,
+            temperature=self.temperature,
+            mutations=self.mutations
+        )
+        with open(filename, "w") as f:
+            json.dump(data, f)
 
     @property
     def phenotype_type(self):

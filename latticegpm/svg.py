@@ -26,6 +26,13 @@ COLORS = {
     "y": "yellow",
 }
 
+def draw(sequence, conf):
+    """"""
+
+    return drawing
+
+
+
 class Configuration:
     """ Main class for drawing an SVG of a lattice protein's fold.
 
@@ -111,7 +118,6 @@ class Configuration:
         # If using IPython, try to print to notebook
         try:
             return self.notebook
-
         except ImportError:
             raise Warning(""" IPython not installed. """)
 
@@ -303,6 +309,16 @@ class Drawing(svgwrite.Drawing):
             " ":None
         }
         self.draw()
+
+    def set_colors(self):
+        """"""
+
+    def get_array(self):
+        """"""
+
+    def get_color_array(self):
+        """"""
+
 
     def draw(self):
         """ Draw this drawing. """
