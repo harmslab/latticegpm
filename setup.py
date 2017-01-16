@@ -12,6 +12,6 @@ setup(name='latticegpm',
       install_requires=[
           'latticeproteins',
           'numpy',
-          'seqspace',
+          'gpmap',
       ],
       zip_safe=False)
