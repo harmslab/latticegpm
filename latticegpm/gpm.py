@@ -159,6 +159,10 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
 
     @classmethod
     def from_json(cls, filename, **kwargs):
+        """Read a lattice genotype-phenotype map from json file.
+
+        Keyword arguments will manually override elements in the json file.
+        """
         # Open, json load, and close a json file
         f = open(filename, "r")
         data = json.load(f)
@@ -180,7 +184,6 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
             setattr(gpm, key, val)
         gpm._build()
         return gpm
-
 
     def to_json(self, filename):
         """Write lattice genotype-phenotype map to json file.
