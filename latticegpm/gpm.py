@@ -73,25 +73,35 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         self.temperature = temperature
         self.target_conf = target_conf
         self.phenotype_type = phenotype_type
+        # Initialize a phenotypes array.
+        self.genotypes = mutations_to_genotypes(wildtype, mutations)
+        # construct space.
+        self._build()
+        self._fold(Conformations)
+
+    def _fold(self, Conformations):
+        """Fold all genotypes and store info.
+        """
+        # The slow step.
+        self.Conformations = Conformations
+        self._nativeEs = np.empty(self.n, dtype=float)
+        self._confs = np.empty(self.n, dtype="U" + str(self.length - 1))
+        self._partition_sum = np.empty(self.n, dtype=float)
+        self._folded = np.empty(self.n, dtype=bool)
+        for i, g in enumerate(self.genotypes):
+            output = self.Conformations.FoldSequence(g, self.temperature, target_conf=self.target_conf)
+            self._nativeEs[i] = output[0]
+            self._confs[i] = output[1]
+            self._partition_sum[i] = output[2]
+            self._folded[i] = output[3]
+
+    def _build(self):
+        """Initialize attributes in space. useful for manual construction.
+        """
         # Set some gpmap attrs
         self.log_transform = False
         self.n_replicates = None
         self.stdeviations = None
-        # Construct conformations database.
-        self.Conformations = Conformations
-        # Initialize a phenotypes array.
-        self.genotypes = mutations_to_genotypes(wildtype, mutations)
-        # The slow step.
-        self.nativeEs = np.empty(self.n, dtype=float)
-        self.confs = np.empty(self.n, dtype="U" + str(self.length - 1))
-        self.partition_sum = np.empty(self.n, dtype=float)
-        self.folded = np.empty(self.n, dtype=bool)
-        for i, g in enumerate(self.genotypes):
-            output = self.Conformations.FoldSequence(g, self.temperature, target_conf=target_conf)
-            self.nativeEs[i] = output[0]
-            self.confs[i] = output[1]
-            self.partition_sum[i] = output[2]
-            self.folded[i] = output[3]
         # Construct a binary map for the lattice genotype-phenotype map.
         self.binary = BinaryMap(self)
 
@@ -124,7 +134,7 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
     def stabilities(self):
         """Folding stability for all lattice proteins in map."""
         return self.nativeEs + self.temperature * np.log(
-            self._partition_sum -np.exp(-self.nativeEs/self.temperature))
+            self._partition_sum - np.exp(-self.nativeEs/self.temperature))
 
     @property
     def fracfolded(self):
@@ -146,6 +156,31 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         """
         mutations = binary_mutations_map(wildtype, mutant)
         return cls(wildtype, mutations, Conformations, **kwargs)
+
+    @classmethod
+    def from_json(cls, filename, **kwargs):
+        # Open, json load, and close a json file
+        f = open(filename, "r")
+        data = json.load(f)
+        f.close()
+        # Grab all properties from data-structure
+        necessary_args = ["wildtype","genotypes","nativeEs","partition_sum",
+            "confs","folded","phenotype_type","temperature","mutations"]
+        # check arguments
+        for arg in necessary_args:
+            if arg not in data:
+                raise Exception(arg + " not in json.")
+        # Update data with kwargs overridded by user
+        data.update(**kwargs)
+        # Create an instance
+        gpm = cls.__new__(cls)
+        for key, val in data.items():
+            if type(val) == list:
+                val = np.array(val)
+            setattr(gpm, key, val)
+        gpm._build()
+        return gpm
+
 
     def to_json(self, filename):
         """Write lattice genotype-phenotype map to json file.
