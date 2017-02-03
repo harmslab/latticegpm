@@ -1,6 +1,7 @@
 import json
 import numpy as np
 from latticeproteins.conformations import Conformations, PrintConformation
+from latticeproteins.interactions import miyazawa_jernigan
 from latticegpm.utils import fold_energy, ConformationError
 from . import search
 
@@ -8,6 +9,7 @@ from . import search
 from gpmap.gpm import GenotypePhenotypeMap
 from gpmap.binary import BinaryMap
 from gpmap.utils import binary_mutations_map, mutations_to_genotypes
+
 
 # ------------------------------------------------------
 # Build a binary protein lattice model sequence space
@@ -64,12 +66,14 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
             target_conf=None,
             temperature=1.0,
             phenotype_type="stabilities",
+            interaction_energies=miyazawa_jernigan,
             **kwargs
         ):
         # Construct a mutational mapping dictionary
         self.wildtype = wildtype
         self.mutations = mutations
         # Set initial properties of sequence space.
+        self.interaction_energies = miyazawa_jernigan
         self.temperature = temperature
         self.target_conf = target_conf
         self.phenotype_type = phenotype_type
@@ -77,23 +81,30 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         self.genotypes = mutations_to_genotypes(wildtype, mutations)
         # construct space.
         self._build()
-        self._fold(Conformations)
+        self._fold(Conformations, **kwargs)
 
     def _fold(self, Conformations):
         """Fold all genotypes and store info.
         """
-        # The slow step.
-        self.Conformations = Conformations
-        self._nativeEs = np.empty(self.n, dtype=float)
-        self._confs = np.empty(self.n, dtype="U" + str(self.length - 1))
-        self._partition_sum = np.empty(self.n, dtype=float)
-        self._folded = np.empty(self.n, dtype=bool)
-        for i, g in enumerate(self.genotypes):
-            output = self.Conformations.FoldSequence(g, self.temperature, target_conf=self.target_conf)
-            self._nativeEs[i] = output[0]
-            self._confs[i] = output[1]
-            self._partition_sum[i] = output[2]
-            self._folded[i] = output[3]
+        # Check if a custom partition function is given.
+        if hasattr(self, "partition_confs"):
+            self.recalculate_partition_sum(self.partition_confs)
+        else:
+            # The slow step.
+            self.Conformations = Conformations
+            self._nativeEs = np.empty(self.n, dtype=float)
+            self._confs = np.empty(self.n, dtype="U" + str(self.length - 1))
+            self._partition_sum = np.empty(self.n, dtype=float)
+            self._folded = np.empty(self.n, dtype=bool)
+            for i, g in enumerate(self.genotypes):
+                output = self.Conformations.FoldSequence(g, self.temperature)
+                self._nativeEs[i] = output[0]
+                self._confs[i] = output[1]
+                self._partition_sum[i] = output[2]
+                self._folded[i] = output[3]
+        # Set the target conf if its given.
+        if self.target_conf is not None:
+            self.set_target_conf(self.target_conf)
 
     def _build(self):
         """Initialize attributes in space. useful for manual construction.
@@ -104,6 +115,22 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         self.stdeviations = None
         # Construct a binary map for the lattice genotype-phenotype map.
         self.binary = BinaryMap(self)
+
+    def set_partition_confs(self, confs):
+        """Manually set the conformations in the partition function. This is the
+        same as manually defining the free energy landscape.
+        """
+        self.partition_confs_ = confs
+        self.recalculate_partition_sum(confs)
+
+    def set_target_conf(self, target_conf):
+        """Set a target conformation as the native state for all genotypes in the
+        maps. Recalculates nativeEs.
+        """
+        self.target_conf = target_conf
+        for i in range(self.n):
+            self._nativeEs[i] = fold_energy(self.genotypes[i], self.target_conf, self.interaction_energies)
+            self.confs[i] = self.target_conf
 
     @property
     def phenotypes(self):
@@ -139,23 +166,24 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
     @property
     def fracfolded(self):
         """Fraction folded for all lattice proteins in map."""
-        return 1 / (1 + np.exp(-self.stabilities/self.temperature))
+        return 1 / (1 + np.exp(self.stabilities/self.temperature))
 
     @classmethod
-    def from_length(cls, length, Conformations, **kwargs):
+    def from_length(cls, length, Conformations, target_conf=None, **kwargs):
         """Searches regions of sequences space for a lattice proteins
         with the given length on calculates their fitness.
         """
         seq1, seq2 = search.sequence_space(length,
             **kwargs)
-        return cls.from_mutant(seq1, seq2, Conformations, **kwargs)
+
+        return cls.from_mutant(seq1, seq2, Conformations, target_conf=target_conf, **kwargs)
 
     @classmethod
-    def from_mutant(cls, wildtype, mutant, Conformations, **kwargs):
+    def from_mutant(cls, wildtype, mutant, Conformations, target_conf=None, **kwargs):
         """Create a binary genotype-phenotype map between a wildtype and mutant
         """
         mutations = binary_mutations_map(wildtype, mutant)
-        return cls(wildtype, mutations, Conformations, **kwargs)
+        return cls(wildtype, mutations, Conformations, target_conf=target_conf, **kwargs)
 
     @classmethod
     def from_json(cls, filename, **kwargs):
@@ -252,7 +280,7 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
             conformations to include in partition func for stability calculations.
         """
         # Set the partition function conformations as a attribute of the space.
-        conf_list
+        self.partition_confs = conf_list
         for i in range(self.n):
             # Sum over all conformations in z_conf for genotype i
             z = 0   # Start with the completely unfolded conformation
@@ -261,7 +289,7 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
             min_conf = ""
             min_energy = 0
             fold = True
-            for conf in self.z_confs:
+            for conf in conf_list:
                 # Calculate folding energies of configuration
                 fe = fold_energy(self.genotypes[i], conf, self.interaction_energies)
                 # Add config to partition function
@@ -276,10 +304,13 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
                 # If it's not a single lowest state, its nonnative.
                 elif fe == min_energy:
                     folded=False
-            # Set partition functions
-            self._nativeEs[i] = min_energy
-            self._folded[i] = folded
             self._partition_sum[i] = z
+            # Set the native state if a target is not given
+            if self.target_conf is None:
+                # Set partition functions
+                self._nativeEs[i] = min_energy
+                self._folded[i] = folded
+                self._confs[i] = conf
 
     def print_sequences(self, sequences):
         """ Print sequence conformation with/without ligand bound. """

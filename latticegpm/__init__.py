@@ -1,2 +1,2 @@
 from .gpm import LatticeGenotypePhenotypeMap
-from .search import sequence_space
+from .svg import draw
