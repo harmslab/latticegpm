@@ -2,7 +2,8 @@ import json
 import numpy as np
 from latticeproteins.conformations import Conformations, PrintConformation
 from latticeproteins.interactions import miyazawa_jernigan
-from latticegpm.utils import fold_energy, ConformationError
+from latticegpm.utils import ConformationError
+from latticegpm.thermo import fold_energy
 from . import search
 
 # use space enumeration
