@@ -26,6 +26,7 @@ COLORS = {
     "g": "green",
     "m": "magenta",
     "y": "yellow",
+    ".": "black"
 }
 
 

@@ -1,9 +1,56 @@
 import os
+import random
 
 from latticeproteins.fitness import Fitness
 from latticeproteins.interactions import miyazawa_jernigan
 from latticeproteins.sequences import RandomSequence, NMutants
 from latticeproteins.conformations import Conformations
+
+from .thermo import LatticeThermodynamics
+from gpmap.utils import hamming_distance
+from gpmap.utils import AMINO_ACIDS
+
+def adaptive_walk(lattice, n_mutations):
+    """Given a lattice object, adaptive walk to a sequence n_mutations away.
+    Only works for <10 conformations in the landscapes!!!
+    """
+    # Sanity check
+    if type(lattice) != LatticeThermodynamics:
+        raise TypeError("lattice must be a LatticeThermodynamics object")
+    elif len(lattice.conf_list) > 10:
+        raise Exception("too many conformations to compute in a reasonable time.")
+
+    wildtype = lattice.sequence
+    mutant = list(wildtype)
+
+    hamming = 0
+    indices = list(range(len(wildtype)))
+    fracfolded = lattice.fracfolded
+    while hamming < n_mutations:
+        # Select a site to mutate
+        mut = mutant[:]
+        index = random.choice(indices)
+
+        # Choose a mutation
+        mutation = random.choice(AMINO_ACIDS)
+        mut[index] = mutation
+
+        # New lattice
+        mlattice = LatticeThermodynamics(
+            "".join(mut),
+            lattice.conf_list,
+            lattice.temperature,
+            interaction_energies=lattice.interaction_energies)
+
+        if mlattice.fracfolded > fracfolded:
+            indices.remove(index)
+            mutant[index] = mutation
+            hamming = hamming_distance(wildtype, mutant)
+            fracfolded = mlattice.fracfolded
+
+    return mlattice
+
+
 
 def sequence_space(length, temperature=1.0, threshold=0.0,
     target_conf=None,

@@ -113,10 +113,10 @@ def stability_from_conf_list(sequence, conf_list, temperature, interaction_energ
     partition = partition_function_from_energies(energies, temperature)
     # native energy
     minE = energies[energies==energies.min()]
-    if len(minE) > 0:
+    if len(minE) > 1:
         return 0, False
     # Calculate stabilities
-    return minE + temperature * np.log(partition - np.exp(-minE / temperature)), True
+    return minE[0] + temperature * np.log(partition - np.exp(-minE[0] / temperature)), True
 
 def stability_from_energies(energies, temperature):
     """Calculate stability from list of energies.
@@ -132,10 +132,10 @@ def stability_from_energies(energies, temperature):
     partition = partition_function_from_energies(energies, temperature)
     # native energy
     minE = energies[energies==energies.min()]
-    if len(minE) > 0:
+    if len(minE) > 1:
         return 0, False
     # Calculate stabilities
-    return minE + temperature * np.log(partition - np.exp(-minE / temperature)), True
+    return minE[0] + temperature * np.log(partition - np.exp(-minE[0] / temperature)), True
 
 def fracfolded_from_conf_list(sequence, conf_list, temperature, interaction_energies=miyazawa_jernigan):
     """Calculate staiblity from a list of conformations
