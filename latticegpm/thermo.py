@@ -33,6 +33,8 @@ class LatticeThermodynamics(object):
             self._energies = energy_list(self.sequence,
                 self.conf_list,
                 interaction_energies=self.interaction_energies)
+            conf_i = np.where(self._energies == self._energies.min())[0]
+            self.native_conf = self.conf_list[conf_i][0]
             return self._energies
 
     @property

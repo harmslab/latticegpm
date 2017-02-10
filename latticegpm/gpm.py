@@ -284,9 +284,9 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         self.partition_confs = conf_list
         for i in range(self.n):
             # Sum over all conformations in z_conf for genotype i
-            z = 0   # Start with the completely unfolded conformation
+            z = 0
             # The completely unfolded state is a possible configuration
-            conf_energies = [0]
+            conf_energies = []
             min_conf = ""
             min_energy = 0
             fold = True
@@ -311,7 +311,7 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
                 # Set partition functions
                 self._nativeEs[i] = min_energy
                 self._folded[i] = folded
-                self._confs[i] = conf
+                self._confs[i] = min_conf
 
     def print_sequences(self, sequences):
         """ Print sequence conformation with/without ligand bound. """

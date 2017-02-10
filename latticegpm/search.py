@@ -42,15 +42,13 @@ def adaptive_walk(lattice, n_mutations):
             lattice.temperature,
             interaction_energies=lattice.interaction_energies)
 
-        if mlattice.fracfolded > fracfolded:
+        if mlattice.fracfolded > fracfolded and mlattice.native_conf == lattice.native_conf:
             indices.remove(index)
             mutant[index] = mutation
             hamming = hamming_distance(wildtype, mutant)
             fracfolded = mlattice.fracfolded
 
     return mlattice
-
-
 
 def sequence_space(length, temperature=1.0, threshold=0.0,
     target_conf=None,
