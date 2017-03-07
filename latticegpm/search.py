@@ -1,5 +1,6 @@
 import os
 import random
+import numpy as np
 
 from latticeproteins.fitness import Fitness
 from latticeproteins.interactions import miyazawa_jernigan
@@ -9,6 +10,26 @@ from latticeproteins.conformations import Conformations
 from .thermo import LatticeThermodynamics
 from gpmap.utils import hamming_distance
 from gpmap.utils import AMINO_ACIDS
+
+
+def get_lowest_confs(seq, k, database, temperature=1.0):
+    """Get the `k` lowest conformations in the sequence's conformational ensemble.
+    """
+    length = len(seq)
+    c = Conformations(length, database)
+    dGdependence = "fracfolded"
+
+    # Calculate the kth lowest conformations
+    ncontacts = c.MaxContacts()
+    confs = np.array(c.UniqueConformations(ncontacts))
+    energies = np.empty(len(confs), dtype=float)
+    for i, conf in enumerate(confs):
+        output = c.FoldSequence(seq, 1.0, target_conf=str(conf), loop_in_C=False)
+        energies[i] = output[0]
+
+    sorted_e = np.argsort(energies)
+    states = confs[sorted_e[0:k]]
+    return states
 
 def adaptive_walk(lattice, n_mutations):
     """Given a lattice object, adaptive walk to a sequence n_mutations away.

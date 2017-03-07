@@ -1,6 +1,5 @@
 import json
 import numpy as np
-from latticeproteins.conformations import Conformations, PrintConformation
 from latticeproteins.interactions import miyazawa_jernigan
 from latticegpm.utils import ConformationError
 from latticegpm.thermo import fold_energy
@@ -62,14 +61,12 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
     For more attributes, see GenotypePhenotypeMap in `gpmap` package.
     """
     def __init__(self, wildtype,
-            mutations,
-            Conformations,
-            target_conf=None,
-            temperature=1.0,
-            phenotype_type="stabilities",
-            interaction_energies=miyazawa_jernigan,
-            **kwargs
-        ):
+        mutations,
+        target_conf=None,
+        temperature=1.0,
+        phenotype_type="stabilities",
+        interaction_energies=miyazawa_jernigan,
+        **kwargs):
         # Construct a mutational mapping dictionary
         self.wildtype = wildtype
         self.mutations = mutations
@@ -82,27 +79,27 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         self.genotypes = mutations_to_genotypes(wildtype, mutations)
         # construct space.
         self._build()
-        self._fold(Conformations, **kwargs)
 
-    def _fold(self, Conformations):
-        """Fold all genotypes and store info.
-        """
+    def fold(self, conf_list=None, Conformations=None):
+        """Fold all genotypes and store info."""
         # Check if a custom partition function is given.
-        if hasattr(self, "partition_confs"):
-            self.recalculate_partition_sum(self.partition_confs)
-        else:
+        self._nativeEs = np.empty(self.n, dtype=float)
+        self._confs = np.empty(self.n, dtype="U" + str(self.length - 1))
+        self._partition_sum = np.empty(self.n, dtype=float)
+        self._folded = np.empty(self.n, dtype=bool)
+        if conf_list is not None:
+            self.recalculate_partition_sum(conf_list)
+        elif Conformations is not None:
             # The slow step.
             self.Conformations = Conformations
-            self._nativeEs = np.empty(self.n, dtype=float)
-            self._confs = np.empty(self.n, dtype="U" + str(self.length - 1))
-            self._partition_sum = np.empty(self.n, dtype=float)
-            self._folded = np.empty(self.n, dtype=bool)
             for i, g in enumerate(self.genotypes):
                 output = self.Conformations.FoldSequence(g, self.temperature)
                 self._nativeEs[i] = output[0]
                 self._confs[i] = output[1]
                 self._partition_sum[i] = output[2]
                 self._folded[i] = output[3]
+        else:
+            raise Exception("Not to give conf_list or Conformations object")
         # Set the target conf if its given.
         if self.target_conf is not None:
             self.set_target_conf(self.target_conf)
@@ -174,9 +171,7 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         """Searches regions of sequences space for a lattice proteins
         with the given length on calculates their fitness.
         """
-        seq1, seq2 = search.sequence_space(length,
-            **kwargs)
-
+        seq1, seq2 = search.sequence_space(length, **kwargs)
         return cls.from_mutant(seq1, seq2, Conformations, target_conf=target_conf, **kwargs)
 
     @classmethod
@@ -185,6 +180,21 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         """
         mutations = binary_mutations_map(wildtype, mutant)
         return cls(wildtype, mutations, Conformations, target_conf=target_conf, **kwargs)
+
+    @classmethod
+    def from_Lattice(cls, wt_lattice, mut_lattice, **kwargs):
+        """Takes two ThermodynamicLattice proteins and constructs a genotype-phenotype map
+        between them.
+        """
+        wildtype = wt_lattice.sequence
+        mutant = mut_lattice.sequence
+        # Construct a mutational mapping dictionary
+        mutations = binary_mutations_map(wildtype, mutant)
+        self = cls(wildtype, mutations, **kwargs)
+        # construct space.
+        self._build()
+        self.fold(wt_lattice.conf_list)
+        return self
 
     @classmethod
     def from_json(cls, filename, **kwargs):
