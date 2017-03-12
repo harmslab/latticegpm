@@ -47,7 +47,8 @@ def adaptive_walk(lattice, n_mutations):
     hamming = 0
     indices = list(range(len(wildtype)))
     fracfolded = lattice.fracfolded
-    while hamming < n_mutations:
+    failed = 0
+    while hamming < n_mutations and failed < 100:
         # Select a site to mutate
         mut = mutant[:]
         index = random.choice(indices)
@@ -68,6 +69,11 @@ def adaptive_walk(lattice, n_mutations):
             mutant[index] = mutation
             hamming = hamming_distance(wildtype, mutant)
             fracfolded = mlattice.fracfolded
+        else:
+            failed += 1
+
+    if failed == 100:
+        raise Exception("No adaptive paths n_mutations away.")
 
     return mlattice
 
