@@ -181,6 +181,7 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         mutations = binary_mutations_map(wildtype, mutant)
         self = cls(wildtype, mutations, target_conf=target_conf, **kwargs)
         self.fold(Conformations=Conformations)
+        return self
 
     @classmethod
     def from_Lattice(cls, wt_lattice, mut_lattice, **kwargs):
