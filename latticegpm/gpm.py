@@ -179,7 +179,8 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         """Create a binary genotype-phenotype map between a wildtype and mutant
         """
         mutations = binary_mutations_map(wildtype, mutant)
-        return cls(wildtype, mutations, Conformations, target_conf=target_conf, **kwargs)
+        self = cls(wildtype, mutations, target_conf=target_conf, **kwargs)
+        self.fold(Conformations=Conformations)
 
     @classmethod
     def from_Lattice(cls, wt_lattice, mut_lattice, **kwargs):
