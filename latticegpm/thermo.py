@@ -149,7 +149,7 @@ def stability_from_energies(energies, temperature, minE=None):
     # Calculate stabilities
     return minE[0] + temperature * np.log(partition - np.exp(-minE[0] / temperature)), True
 
-def fracfolded_from_conf_list(sequence, conf_list, temperature, interaction_energies=miyazawa_jernigan, target=target):
+def fracfolded_from_conf_list(sequence, conf_list, temperature, interaction_energies=miyazawa_jernigan, target=None):
     """Calculate staiblity from a list of conformations
     """
     stability, folded = stability_from_conf_list(sequence,
