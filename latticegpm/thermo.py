@@ -17,11 +17,15 @@ class LatticeThermodynamics(object):
 
     Currently, doesn't do a lot of quality control
     """
-    def __init__(self, sequence, conf_list, temperature, interaction_energies=miyazawa_jernigan):
+    def __init__(self, sequence, conf_list, temperature, interaction_energies=miyazawa_jernigan, target=None):
         self.sequence = sequence
         self.conf_list = conf_list
         self.temperature = temperature
         self.interaction_energies = interaction_energies
+        self.target = target
+        self.minE = None
+        if self.target is not None:
+            self.minE = fold_energy(self.sequence, self.target, interactions=self.interaction_energies)
 
     @property
     def energies(self):
@@ -33,8 +37,6 @@ class LatticeThermodynamics(object):
             self._energies = energy_list(self.sequence,
                 self.conf_list,
                 interaction_energies=self.interaction_energies)
-            conf_i = np.where(self._energies == self._energies.min())[0]
-            self.native_conf = self.conf_list[conf_i][0]
             return self._energies
 
     @property
@@ -57,7 +59,8 @@ class LatticeThermodynamics(object):
         except AttributeError:
             self._stability, self._folded = stability_from_energies(
                 self.energies,
-                self.temperature)
+                self.temperature,
+                minE=self.minE)
             return self._stability
 
     @property
@@ -68,7 +71,8 @@ class LatticeThermodynamics(object):
         except AttributeError:
             self._stability, self._folded = stability_from_energies(
                 self.energies,
-                self.temperature)
+                self.temperature,
+                minE=self.minE)
             return self._folded
 
     @property
@@ -99,7 +103,7 @@ def partition_function(sequence, conf_list, temperature, interaction_energies=mi
     energies = energy_list(sequence, conf_list, interaction_energies=interaction_energies)
     return partition_function_from_energies(energies, temperature)
 
-def stability_from_conf_list(sequence, conf_list, temperature, interaction_energies=miyazawa_jernigan):
+def stability_from_conf_list(sequence, conf_list, temperature, interaction_energies=miyazawa_jernigan, target=None):
     """Calculate stabilities from list of conformations.
 
     Returns
@@ -114,13 +118,18 @@ def stability_from_conf_list(sequence, conf_list, temperature, interaction_energ
     # partition function
     partition = partition_function_from_energies(energies, temperature)
     # native energy
+    if target is not None:
+        conf_list = list(conf_list)
+        index = conf_list.index(target)
+        minE = energies[index]
+
     minE = energies[energies==energies.min()]
     if len(minE) > 1:
         return 0, False
     # Calculate stabilities
     return minE[0] + temperature * np.log(partition - np.exp(-minE[0] / temperature)), True
 
-def stability_from_energies(energies, temperature):
+def stability_from_energies(energies, temperature, minE=None):
     """Calculate stability from list of energies.
 
     Returns
@@ -133,25 +142,27 @@ def stability_from_energies(energies, temperature):
     # partition function
     partition = partition_function_from_energies(energies, temperature)
     # native energy
-    minE = energies[energies==energies.min()]
+    if minE is not None:
+        minE = energies[energies==energies.min()]
     if len(minE) > 1:
         return 0, False
     # Calculate stabilities
     return minE[0] + temperature * np.log(partition - np.exp(-minE[0] / temperature)), True
 
-def fracfolded_from_conf_list(sequence, conf_list, temperature, interaction_energies=miyazawa_jernigan):
+def fracfolded_from_conf_list(sequence, conf_list, temperature, interaction_energies=miyazawa_jernigan, target=target):
     """Calculate staiblity from a list of conformations
     """
     stability, folded = stability_from_conf_list(sequence,
         conf_list,
         temperature,
-        interaction_energies=interaction_energies)
+        interaction_energies=interaction_energies,
+        target=target)
     return 1.0 / (1 + np.exp(stability/temperature))
 
-def fracfolded_from_energies(energies, temperature):
+def fracfolded_from_energies(energies, temperature, minE=None):
     """Calculate a fraction folded from a list of energies.
     """
-    stability, folded = stability_from_energies(energies, temperature)
+    stability, folded = stability_from_energies(energies, temperature, minE=minE)
     return 1.0 / (1 + np.exp(stability/temperature))
 
 def fracfolded_from_stability(stability, temperature):
