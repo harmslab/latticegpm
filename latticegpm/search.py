@@ -2,15 +2,13 @@ import os
 import random
 import numpy as np
 
-from latticeproteins.fitness import Fitness
 from latticeproteins.interactions import miyazawa_jernigan
-from latticeproteins.sequences import RandomSequence, NMutants
+from latticeproteins.sequences import random_sequence, n_mutants
 from latticeproteins.conformations import Conformations
 
 from .thermo import LatticeThermodynamics
 from gpmap.utils import hamming_distance
 from gpmap.utils import AMINO_ACIDS
-
 
 def get_lowest_confs(seq, k, database, temperature=1.0):
     """Get the `k` lowest conformations in the sequence's conformational ensemble.
@@ -24,7 +22,7 @@ def get_lowest_confs(seq, k, database, temperature=1.0):
     confs = np.array(c.UniqueConformations(ncontacts))
     energies = np.empty(len(confs), dtype=float)
     for i, conf in enumerate(confs):
-        output = c.FoldSequence(seq, 1.0, target_conf=str(conf), loop_in_C=False)
+        output = c.FoldSequence(seq, 1.0, target_conf=str(conf))
         energies[i] = output[0]
 
     sorted_e = np.argsort(energies)
@@ -76,6 +74,46 @@ def adaptive_walk(lattice, n_mutations):
         raise Exception("No adaptive paths n_mutations away.")
 
     return mlattice
+
+def adaptive_walk2(seq, n_mutations, temp=1.0, target=None):
+    """
+    """
+    length = len(seq)
+    c = Conformations(length, database)
+    dGdependence = "fracfolded"
+
+    wildtype = seq
+    mutant = list(wildtype)
+
+    hamming = 0
+    indices = list(range(len(wildtype)))
+    fracfolded = lattice.fracfolded
+    attempts = 0
+
+    path = []
+
+    fitness = Fitness(temp, c, dGdependence=dGdependence, targets=target)
+    while hamming < n_mutations and attempts < 100:
+        # Calculate stability of all amino acids at all sites
+        AA_grid = np.array([AMINO_ACIDS]*length)
+        dG = np.zeros(AA_grid.shape, dtype=float)
+        for (i,j), AA in np.ndenumerate(AA_grid):
+            seq1 = mutant[:]
+            seq1[i] = AA_grid[i,j]
+            fitness.Fitness(seq1)
+
+        x, y = np.where(dG = dG.max)
+        best_AA = AA_grid[x[0], y[0]]
+        mutant[x[0]] = best_AA
+        path.append(mutant)
+        hamming = hamming_distance(wildtype, mutant)
+        attempts += 0
+
+    if failed == 100:
+        raise Exception("No adaptive paths n_mutations away.")
+
+    return path
+
 
 def sequence_space(length, temperature=1.0, threshold=0.0,
     target_conf=None,

@@ -10,7 +10,6 @@ from gpmap.gpm import GenotypePhenotypeMap
 from gpmap.binary import BinaryMap
 from gpmap.utils import binary_mutations_map, mutations_to_genotypes
 
-
 # ------------------------------------------------------
 # Build a binary protein lattice model sequence space
 # with fitness defined by function in Jesse Blooms'
@@ -93,7 +92,7 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
             # The slow step.
             self.Conformations = Conformations
             for i, g in enumerate(self.genotypes):
-                output = self.Conformations.FoldSequence(g, self.temperature)
+                output = self.Conformations.fold_sequence(g, self.temperature)
                 self._nativeEs[i] = output[0]
                 self._confs[i] = output[1]
                 self._partition_sum[i] = output[2]
