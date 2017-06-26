@@ -111,7 +111,7 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
         self.n_replicates = None
         self.stdeviations = None
         # Construct a binary map for the lattice genotype-phenotype map.
-        self.binary = BinaryMap(self)
+        self.binary = BinaryMap(self, self.wildtype)
 
     def set_partition_confs(self, confs):
         """Manually set the conformations in the partition function. This is the
