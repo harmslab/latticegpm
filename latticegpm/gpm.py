@@ -2,7 +2,7 @@ from latticeproteins import LatticeProteins
 
 # use space enumeration
 from gpmap.gpm import GenotypePhenotypeMap
-from gpmap.utils import mutations_to_genotypes
+from gpmap.utils import mutations_to_genotypes, binary_mutations_map
 
 # ------------------------------------------------------
 # Build a binary protein lattice model sequence space
@@ -95,6 +95,12 @@ class LatticeGenotypePhenotypeMap(GenotypePhenotypeMap):
             phenotypes,
             mutations=mutations
         )
+
+    @classmethod
+    def read_mutant(cls, s1, s2, **kwargs):
+        """Build Lattice GPM """
+        mutations = binary_mutations_map(s1, s2)
+        return cls(s1, mutations, **kwargs)
 
     @property
     def phenotype_type(self):
